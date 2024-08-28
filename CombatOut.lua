@@ -5,6 +5,9 @@ local SlashCommandShort = "/co"
 
 local Parameters = {}
 Parameters.debugMode = true
+Parameters.latency = 0
+Parameters.start_at = 0
+Parameters.finish_at = 0
 
 local debug = function (msg)
 	if not Parameters.debugMode then return end
@@ -21,19 +24,25 @@ debug("create frame")
 local frame = CreateFrame("Frame")
 
 function OnCombatIn() 
-	debug("handle event - combat in")
 	frame:SetScript("OnEvent", OnCombatOut)
 	frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+	Parameters.start_at = GetTime()
+	Parameters.finish_at = 0
+	debug(string.format("handle event - combat in %s", Parameters.start_at))
 end
 
 function OnCombatOut()
-	debug("handle event - combat out")
 	frame:SetScript("OnEvent", OnCombatIn)
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+
+	Parameters.finish_at = GetTime()
+	Parameters.latency = Parameters.finish_at - Parameters.start_at
+	Parameters.start_at = 0
+	debug(string.format("handle event - combat out %s (%s)", Parameters.finish_at, Parameters.latency))
 end
 
 OnCombatOut()
-
 
 SLASH_COMBATOUT1 = SlashCommandFull
 SLASH_COMBATOUT2 = SlashCommandShort
