@@ -6,7 +6,6 @@ local SlashCommandShort = "/co"
 local Parameters = {}
 Parameters.debugMode = true
 Parameters.latency = 0
-Parameters.start_at = 0
 Parameters.finish_at = 0
 
 local debug = function (msg)
@@ -20,29 +19,37 @@ function OnChatCommand(msg)
 	debug(string.format("handle command - '%s'", msg))
 end
 
-debug("create frame")
-local frame = CreateFrame("Frame")
+function OnEvent()
+	debug(string.format("handle event - '%s'", tostring(event)))
+
+	if (event == 'PLAYER_REGEN_DISABLED') then
+		OnCombatIn()
+	end
+
+	if (event == 'PLAYER_REGEN_ENABLED') then
+		OnCombatOut()
+	end
+end
 
 function OnCombatIn() 
-	frame:SetScript("OnEvent", OnCombatOut)
-	frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-
-	Parameters.start_at = GetTime()
-	Parameters.finish_at = 0
-	debug(string.format("handle event - combat in %s", Parameters.start_at))
+	Parameters.finish_at = GetTime() + 5
+	debug("handle event - in combat")
 end
 
 function OnCombatOut()
-	frame:SetScript("OnEvent", OnCombatIn)
-	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-
-	Parameters.finish_at = GetTime()
-	Parameters.latency = Parameters.finish_at - Parameters.start_at
-	Parameters.start_at = 0
-	debug(string.format("handle event - combat out %s (%s)", Parameters.finish_at, Parameters.latency))
+	local latency = GetTime() - Parameters.finish_at
+	Parameters.finish_at = 0
+	Parameters.latency = latency
+	debug(string.format("handle event - out combat (latency:%s s)", latency))
 end
 
-OnCombatOut()
+debug("create frame")
+local frame = CreateFrame("Frame")
+
+debug("register frame events")
+frame:SetScript('OnEvent', OnEvent)
+frame:RegisterEvent('PLAYER_REGEN_ENABLED')
+frame:RegisterEvent('PLAYER_REGEN_DISABLED')
 
 SLASH_COMBATOUT1 = SlashCommandFull
 SLASH_COMBATOUT2 = SlashCommandShort
