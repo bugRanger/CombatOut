@@ -20,14 +20,12 @@ function OnChatCommand(msg)
 end
 
 function OnEvent()
-	debug(string.format("handle event - '%s'", tostring(event)))
+	debug(string.format("handle event - '%s'", event))
 
-	if (event == 'PLAYER_REGEN_DISABLED') then
-		OnCombatIn()
-	end
-
-	if (event == 'PLAYER_REGEN_ENABLED') then
+	if (event == "PLAYER_REGEN_ENABLED") then
 		OnCombatOut()
+	else
+		OnCombatIn() 
 	end
 end
 
@@ -47,9 +45,16 @@ debug("create frame")
 local frame = CreateFrame("Frame")
 
 debug("register frame events")
-frame:SetScript('OnEvent', OnEvent)
-frame:RegisterEvent('PLAYER_REGEN_ENABLED')
-frame:RegisterEvent('PLAYER_REGEN_DISABLED')
+	frame:SetScript('OnEvent', OnEvent)
+	frame:RegisterEvent('PLAYER_REGEN_ENABLED')
+	frame:RegisterEvent('PLAYER_REGEN_DISABLED')
+
+	frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_MISSES')
+	frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_HITS')
+	frame:RegisterEvent('CHAT_MSG_SPELL_SELF_DAMAGE')
+	frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES')
+
+	frame:RegisterEvent('COMBAT_TEXT_UPDATE')
 
 SLASH_COMBATOUT1 = SlashCommandFull
 SLASH_COMBATOUT2 = SlashCommandShort
