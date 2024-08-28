@@ -7,3 +7,6 @@ Its purpose is to display the time before leaving the battle. This will be usefu
 
 1. Debug mode with latancy counting.
 2. Combat progress bar (6 seconds until combat exit)
+
+### Known issues
+The current countdown does not take into account your latency to the server, so the bar may end before you leave the combat.
