@@ -4,7 +4,7 @@ local SlashCommandFull = "/combatout"
 local SlashCommandShort = "/co"
 
 local Parameters = {}
-Parameters.debugMode = true
+Parameters.debugMode = false
 Parameters.latency = 0
 Parameters.duration = 0
 Parameters.finish_at = 0
@@ -137,7 +137,10 @@ local function OnChatCommand(msg)
 	end
 
 	local cmd, arg = vars[1], vars[2]
-	if cmd == "reset" then
+	if cmd == "debug" then
+		Parameters.debugMode = not Parameters.debugMode
+		print(string.format("toggle debug mode: %s", tostring(Parameters.debugMode)))
+	elseif cmd == "reset" then
 		CombatOut_Settings = nil
 		UpdateSettings()
 		UpdateAppearance()
