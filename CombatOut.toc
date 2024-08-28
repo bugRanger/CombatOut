@@ -4,5 +4,6 @@
 ## Notes: Displays a timer which shows the time until you leave the PvP combat if you don't participate in it
 ## Dependencies: 
 ## Author: https://github.com/bugRanger
+## SavedVariables: CombatOut_Settings
 
-CombatOut.lua
+CombatOut.xml
