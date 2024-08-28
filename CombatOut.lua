@@ -17,7 +17,9 @@ local defaults = {
 	b = 0,
 	a = 1,
 	s = 1,
-	sound = "off"
+	colorR = 1,
+	colorG = 0,
+	colorB = 0,
 }
 
 local settings = {
@@ -28,6 +30,9 @@ local settings = {
 	b = "Border height",
 	a = "Alpha between 0 and 1",
 	s = "Bar scale",
+	colorR = "Bar color R",
+	colorG = "Bar color G",
+	colorB = "Bar color B",
 }
 
 local debug = function (msg)
@@ -89,6 +94,7 @@ local function UpdateDisplay()
 	else
 		local width = (Parameters.duration / 6 ) * CombatOut_Settings["w"]
 		if width > 0 then
+			CombatOut_FrameTime:SetVertexColor(CombatOut_Settings["colorR"], CombatOut_Settings["colorG"], CombatOut_Settings["colorB"])
 			CombatOut_FrameTime:SetWidth(width)
 			CombatOut_FrameTime:Show()
 		else

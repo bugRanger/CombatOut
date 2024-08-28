@@ -37,7 +37,7 @@
 
 			<Layer level="ARTWORK">
 				<Texture name="CombatOut_FrameTime">
-					<Color r="1" g="0" b="0" a="1" />
+					<Color r="0.5" g="0.7" b="0" a="1" />
 					<Size>
 						<AbsDimension x="200" y="13" />
 					</Size>
