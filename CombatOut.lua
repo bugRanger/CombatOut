@@ -30,7 +30,7 @@ function OnEvent()
 end
 
 function OnCombatIn() 
-	Parameters.finish_at = GetTime() + 5
+	Parameters.finish_at = GetTime() + 6
 	debug("handle event - in combat")
 end
 
