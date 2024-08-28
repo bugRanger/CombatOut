@@ -8,6 +8,23 @@ Parameters.debugMode = true
 Parameters.latency = 0
 Parameters.duration = 0
 Parameters.finish_at = 0
+Parameters.event_types = {
+	["AURA_START_HARMFUL"] = true, 
+	["SWING_DAMAGE"] = true, --someone got damaged by melee
+	["SWING_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by meele
+	["RANGE_DAMAGE"] = true, --someone got damaged by range
+	["RANGE_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by range
+	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
+	["SPELL_RESISTED"] = true, 
+	["SPELL_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by caster
+	["SPELL_HEAL"] = true, --someone got healed by caster
+	["SPELL_CAST_SUCCESS"] = true, --some got affected by instant spell like Counterspell
+	["SPELL_AURA_APPLIED"] = true, --someone got buffed/debuffed by caster
+	["SPELL_AURA_DISPELLED"] = true, --someones buff/debuff got dispelled by caster
+	["SPELL_AURA_STOLEN"] = true, --someones buff got stolen by caster
+	["SPELL_DISPEL_FAILED"] = true, --caster failed to dispel buff/debuff
+	["SPELL_PERIODIC_DISPEL_FAILED"] = true, --caster failed to dispel dot/hot
+}
 
 local defaults = {
 	x = 0,
@@ -164,7 +181,8 @@ function CombatOut_OnLoad()
 end
 
 function CombatOut_OnEvent()
-	debug(string.format("handle event - '%s'", event))
+	debug(string.format("handle event - %s (%s)", tostring(event), tostring(arg1)))
+
 	if event == 'ADDON_LOADED' then
 		if (string.upper(arg1) == string.upper(Name)) then
 			UpdateSettings()
@@ -177,10 +195,18 @@ function CombatOut_OnEvent()
 
 	if event == 'PLAYER_REGEN_ENABLED' then
 		OnCombatOut()
-	else
-		OnCombatIn()
-		CombatOut_Frame:Show()
+		return
 	end
+
+
+	if event == 'COMBAT_TEXT_UPDATE' then
+		if not Parameters.event_types[arg1] then
+			return
+		end
+	end
+
+	OnCombatIn()
+	CombatOut_Frame:Show()
 end
 
 function CombatOut_OnUpdate(delta)
