@@ -54,7 +54,7 @@
 						<Offset x="1" y="1" />
 						<Color r="0" g="0" b="0" />
 					</Shadow>
-					<FontHeight val="13"/>
+					<FontHeight val="14"/>
 					<Size>
 						<AbsDimension x="200" y="13" />
 					</Size>

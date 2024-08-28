@@ -35,6 +35,21 @@ local debug = function (msg)
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("%s debug '%s'", ShortName, msg))
 end
 
+local split = function (s,t)
+	local l = {n=0}
+	local f = function (s)
+		l.n = l.n + 1
+		l[l.n] = s
+	end
+	local p = "%s*(.-)%s*"..t.."%s*"
+	s = string.gsub(s,"^%s+","")
+	s = string.gsub(s,"%s+$","")
+	s = string.gsub(s,p,f)
+	l.n = l.n + 1
+	l[l.n] = string.gsub(s,"(%s%s*)$","")
+	return l
+end
+
 
 local function UpdateSettings()
 	if not CombatOut_Settings then CombatOut_Settings = {} end
@@ -90,6 +105,40 @@ end
 local function OnChatCommand(msg)
 	msg = msg or ""
 	debug(string.format("handle command - '%s'", msg))
+
+	local vars = split(msg, " ")
+	for k,v in vars do
+		if v == "" then
+			v = nil
+		end
+	end
+
+	local cmd, arg = vars[1], vars[2]
+	if cmd == "reset" then
+		CombatOut_Settings = nil
+		UpdateSettings()
+		UpdateAppearance()
+		print("Reset to defaults.")
+	elseif settings[cmd] ~= nil then
+		if arg ~= nil then
+			if arg == "on" then arg = 1 end
+			if arg == "off" then arg = 0 end
+			local number = tonumber(arg)
+			if number then
+				CombatOut_Settings[cmd] = number
+				UpdateAppearance()
+			else
+				print("Error: Invalid argument")
+			end
+		end
+		print(format("%s %s %s (%s)",
+			SlashCommandShort, cmd, CombatOut_Settings[cmd], settings[cmd]))
+	else
+		for k, v in settings do
+			print(format("%s %s %s (%s)",
+				SlashCommandShort, k, CombatOut_Settings[k], v))
+		end
+	end
 end
 
 function CombatOut_OnLoad()
@@ -155,4 +204,4 @@ end
 SLASH_COMBATOUT1 = SlashCommandFull
 SLASH_COMBATOUT2 = SlashCommandShort
 
-SlashCmdList[Name] = OnChatCommand;
+SlashCmdList[string.upper(Name)] = OnChatCommand;
