@@ -35,10 +35,10 @@ function OnCombatIn()
 end
 
 function OnCombatOut()
-	local latency = GetTime() - Parameters.finish_at
+	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
 	Parameters.finish_at = 0
 	Parameters.latency = latency
-	debug(string.format("handle event - out combat (latency:%s s)", latency))
+	debug(string.format("handle event - out combat (latency:%s ms)", latency))
 end
 
 debug("create frame")
