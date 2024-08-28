@@ -150,6 +150,7 @@ function CombatOut_OnLoad()
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_MISSES')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_HITS')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_SELF_DAMAGE')
+	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES')
 
 	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')
