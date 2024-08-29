@@ -171,6 +171,27 @@ local function OnChatCommand(msg)
 	end
 end
 
+
+local function OnCombatIn() 
+	Parameters.duration = 6
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - in combat")
+end
+
+local function OnCombatRefresh()
+	Parameters.duration = 6
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - refresh combat")
+end
+
+local function OnCombatOut()
+	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
+	Parameters.finish_at = 0
+	Parameters.duration = 0
+	Parameters.latency = latency
+	debug(string.format("handle event - out combat (latency:%s ms)", latency))
+end
+
 function CombatOut_OnLoad()
 	debug("begin: Register events")
 	CombatOut_Frame:RegisterEvent('ADDON_LOADED')
@@ -230,26 +251,6 @@ function CombatOut_OnUpdate(delta)
 	end
 
 	UpdateDisplay()
-end
-
-function OnCombatIn() 
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
-	debug("handle event - in combat")
-end
-
-function OnCombatRefresh()
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
-	debug("handle event - refresh combat")
-end
-
-function OnCombatOut()
-	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
-	Parameters.finish_at = 0
-	Parameters.duration = 0
-	Parameters.latency = latency
-	debug(string.format("handle event - out combat (latency:%s ms)", latency))
 end
 
 SLASH_COMBATOUT1 = SlashCommandFull
