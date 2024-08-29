@@ -205,6 +205,12 @@ function CombatOut_OnEvent()
 		return
 	end
 
+	if event == 'PLAYER_REGEN_DISABLED' then
+		OnCombatIn()
+		CombatOut_Frame:Show()
+		return
+	end
+
 
 	if event == 'COMBAT_TEXT_UPDATE' then
 		if not Parameters.event_types[arg1] then
@@ -212,8 +218,7 @@ function CombatOut_OnEvent()
 		end
 	end
 
-	OnCombatIn()
-	CombatOut_Frame:Show()
+	OnCombatRefresh()
 end
 
 function CombatOut_OnUpdate(delta)
@@ -231,6 +236,12 @@ function OnCombatIn()
 	Parameters.duration = 6
 	Parameters.finish_at = GetTime() + Parameters.duration
 	debug("handle event - in combat")
+end
+
+function OnCombatRefresh()
+	Parameters.duration = 6
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - refresh combat")
 end
 
 function OnCombatOut()
