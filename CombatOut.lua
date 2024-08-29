@@ -57,6 +57,10 @@ local debug = function (msg)
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("%s debug '%s'", ShortName, msg))
 end
 
+local print = function (msg)
+	DEFAULT_CHAT_FRAME:AddMessage(msg)
+end
+
 local split = function (s,t)
 	local l = {n=0}
 	local f = function (s)
