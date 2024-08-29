@@ -129,6 +129,26 @@ local function UpdateDisplay()
 	end
 end
 
+local function OnCombatIn() 
+	Parameters.duration = 6
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - in combat")
+end
+
+local function OnCombatRefresh()
+	Parameters.duration = 6
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - refresh combat")
+end
+
+local function OnCombatOut()
+	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
+	Parameters.finish_at = 0
+	Parameters.duration = 0
+	Parameters.latency = latency
+	debug(string.format("handle event - out combat (latency:%s ms)", latency))
+end
+
 local function OnChatCommand(msg)
 	msg = msg or ""
 	debug(string.format("handle command - '%s'", msg))
@@ -141,7 +161,11 @@ local function OnChatCommand(msg)
 	end
 
 	local cmd, arg = vars[1], vars[2]
-	if cmd == "debug" then
+
+	if cmd == "test" then
+		OnCombatIn()
+		CombatOut_Frame:Show()
+	elseif cmd == "debug" then
 		Parameters.debugMode = not Parameters.debugMode
 		print(string.format("toggle debug mode: %s", tostring(Parameters.debugMode)))
 	elseif cmd == "reset" then
@@ -171,27 +195,6 @@ local function OnChatCommand(msg)
 	end
 end
 
-
-local function OnCombatIn() 
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
-	debug("handle event - in combat")
-end
-
-local function OnCombatRefresh()
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
-	debug("handle event - refresh combat")
-end
-
-local function OnCombatOut()
-	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
-	Parameters.finish_at = 0
-	Parameters.duration = 0
-	Parameters.latency = latency
-	debug(string.format("handle event - out combat (latency:%s ms)", latency))
-end
-
 function CombatOut_OnLoad()
 	debug("begin: Register events")
 	CombatOut_Frame:RegisterEvent('ADDON_LOADED')
@@ -203,6 +206,8 @@ function CombatOut_OnLoad()
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_SELF_DAMAGE')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES')
+	-- Handle spell cast Sunder etc
+	-- CombatOut_Frame:RegisterEvent('SPELLCAST_STOP')
 
 	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')
 	debug("end: register events")
