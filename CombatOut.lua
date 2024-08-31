@@ -11,10 +11,11 @@ Parameters.finish_at = 0
 Parameters.event_types = {
 	["AURA_START_HARMFUL"] = true, 
 	["DAMAGE"] = true,
-	["SWING_DAMAGE"] = true, --someone got damaged by melee
-	["SWING_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by meele
-	["RANGE_DAMAGE"] = true, --someone got damaged by range
-	["RANGE_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by range
+	["DAMAGE_CRIT"] = true,
+	["BLOCK"] = true,
+	["PARRY"] = true,
+	["DODGE"] = true,
+	["MISS"] = true,
 	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
 	["SPELL_RESISTED"] = true, 
 	["SPELL_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by caster
@@ -25,6 +26,11 @@ Parameters.event_types = {
 	["SPELL_AURA_STOLEN"] = true, --someones buff got stolen by caster
 	["SPELL_DISPEL_FAILED"] = true, --caster failed to dispel buff/debuff
 	["SPELL_PERIODIC_DISPEL_FAILED"] = true, --caster failed to dispel dot/hot
+	-- maybe its dont suooirt in 1.12
+	["SWING_DAMAGE"] = true, --someone got damaged by melee
+	["SWING_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by meele
+	["RANGE_DAMAGE"] = true, --someone got damaged by range
+	["RANGE_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by range
 }
 
 local defaults = {
