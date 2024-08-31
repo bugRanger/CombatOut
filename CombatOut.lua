@@ -10,6 +10,7 @@ Parameters.duration = 0
 Parameters.finish_at = 0
 Parameters.event_types = {
 	["AURA_START_HARMFUL"] = true, 
+	["DAMAGE"] = true,
 	["SWING_DAMAGE"] = true, --someone got damaged by melee
 	["SWING_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by meele
 	["RANGE_DAMAGE"] = true, --someone got damaged by range
