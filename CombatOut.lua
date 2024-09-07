@@ -10,12 +10,6 @@ Parameters.duration = 0
 Parameters.finish_at = 0
 Parameters.event_types = {
 	["AURA_START_HARMFUL"] = true, 
-	["DAMAGE"] = true,
-	["DAMAGE_CRIT"] = true,
-	["BLOCK"] = true,
-	["PARRY"] = true,
-	["DODGE"] = true,
-	["MISS"] = true,
 	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
 	["SPELL_RESISTED"] = true, 
 	["SPELL_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by caster
@@ -26,11 +20,6 @@ Parameters.event_types = {
 	["SPELL_AURA_STOLEN"] = true, --someones buff got stolen by caster
 	["SPELL_DISPEL_FAILED"] = true, --caster failed to dispel buff/debuff
 	["SPELL_PERIODIC_DISPEL_FAILED"] = true, --caster failed to dispel dot/hot
-	-- maybe it is not supported in 1.12
-	["SWING_DAMAGE"] = true, --someone got damaged by melee
-	["SWING_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by meele
-	["RANGE_DAMAGE"] = true, --someone got damaged by range
-	["RANGE_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by range
 }
 
 local defaults = {
@@ -208,20 +197,25 @@ function CombatOut_OnLoad()
 	CombatOut_Frame:RegisterEvent('PLAYER_REGEN_ENABLED')
 	CombatOut_Frame:RegisterEvent('PLAYER_REGEN_DISABLED')
 
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_MISSES')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_HITS')
+	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_MISSES') -- MISS and BLOCK, PARRY, DODGE
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_SELF_DAMAGE')
 	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF')
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES')
+
+	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_HITS')
+	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES') -- MISS and BLOCK, PARRY, DODGE
+	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS')
+	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_HOSTILEPLAYER_MISSES') -- MISS and BLOCK, PARRY, DODGE
+
 	-- Handle spell cast Sunder etc
 	-- CombatOut_Frame:RegisterEvent('SPELLCAST_STOP')
 
-	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')
+	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')	
 	debug("end: register events")
 end
 
 function CombatOut_OnEvent()
-	debug(string.format("handle event - %s (%s)", tostring(event), tostring(arg1)))
+	debug(string.format("handle event - %s (%s %s)", tostring(event), tostring(arg1), tostring(arg2)))
 
 	if event == 'ADDON_LOADED' then
 		if (string.upper(arg1) == string.upper(Name)) then
@@ -243,7 +237,6 @@ function CombatOut_OnEvent()
 		CombatOut_Frame:Show()
 		return
 	end
-
 
 	if event == 'COMBAT_TEXT_UPDATE' then
 		if not Parameters.event_types[arg1] then
