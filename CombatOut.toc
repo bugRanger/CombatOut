@@ -1,5 +1,5 @@
 ## Interface: 11200
-## Version: 0.1.2
+## Version: 0.1.3
 ## Title: CombatOut
 ## Notes: Displays a timer which shows the time until you leave the PvP combat if you don't participate in it
 ## Dependencies: 
