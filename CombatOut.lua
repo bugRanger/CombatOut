@@ -238,6 +238,13 @@ function CombatOut_OnEvent()
 		return
 	end
 
+	if event == 'CHAT_MSG_SPELL_SELF_DAMAGE' then
+		if string.find(arg1, "Your Taunt") ~= nil or
+		   string.find(arg1, "Your Growl") ~= nil then
+			return
+		end
+	end
+
 	if event == 'CHAT_MSG_COMBAT_SELF_HITS' then
 		if string.find(arg1, "You fall and lose %d+ health.") ~= nil then
 			return
