@@ -51,7 +51,7 @@ frame:SetScript("OnUpdate", function()
 			local timestamp = GetTime()
 
 			if debuffs[texture] ~= nil then
-				if debuffs[texture].timeleft < timeleft then
+				if debuffs[texture].timeleft ~= -1 and debuffs[texture].timeleft < timeleft then
 					CombatOut:OnCombatRefresh()
 					CombatOut:Debug(string.format("Debuff index: %s", i))
 				end
