@@ -72,6 +72,32 @@ local split = function (s,t)
 	return l
 end
 
+CombatOut = CombatOut or {}
+
+function CombatOut:Debug(msg)
+	debug(msg)
+end
+
+function CombatOut:OnCombatIn()
+	Parameters.duration = 6
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - in combat")
+end
+
+function CombatOut:OnCombatRefresh(latency)
+	latency = latency or 0
+	Parameters.duration = 6 + latency
+	Parameters.finish_at = GetTime() + Parameters.duration
+	debug("handle event - refresh combat")
+end
+
+function CombatOut:OnCombatOut()
+	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
+	Parameters.finish_at = 0
+	Parameters.duration = 0
+	Parameters.latency = latency
+	debug(string.format("handle event - out combat (latency:%s ms)", latency))
+end
 
 local function UpdateSettings()
 	if not CombatOut_Settings then CombatOut_Settings = {} end
@@ -125,26 +151,6 @@ local function UpdateDisplay()
 	end
 end
 
-local function OnCombatIn() 
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
-	debug("handle event - in combat")
-end
-
-local function OnCombatRefresh()
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
-	debug("handle event - refresh combat")
-end
-
-local function OnCombatOut()
-	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
-	Parameters.finish_at = 0
-	Parameters.duration = 0
-	Parameters.latency = latency
-	debug(string.format("handle event - out combat (latency:%s ms)", latency))
-end
-
 local function OnChatCommand(msg)
 	msg = msg or ""
 	debug(string.format("handle command - '%s'", msg))
@@ -159,7 +165,7 @@ local function OnChatCommand(msg)
 	local cmd, arg = vars[1], vars[2]
 
 	if cmd == "test" then
-		OnCombatIn()
+		CombatOut:OnCombatIn()
 		CombatOut_Frame:Show()
 	elseif cmd == "debug" then
 		Parameters.debugMode = not Parameters.debugMode
@@ -210,7 +216,7 @@ function CombatOut_OnLoad()
 	-- Handle spell cast Sunder etc
 	-- CombatOut_Frame:RegisterEvent('SPELLCAST_STOP')
 
-	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')	
+	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')
 	debug("end: register events")
 end
 
@@ -228,12 +234,12 @@ function CombatOut_OnEvent()
 	end
 
 	if event == 'PLAYER_REGEN_ENABLED' then
-		OnCombatOut()
+		CombatOut:OnCombatOut()
 		return
 	end
 
 	if event == 'PLAYER_REGEN_DISABLED' then
-		OnCombatIn()
+		CombatOut:OnCombatIn()
 		CombatOut_Frame:Show()
 		return
 	end
@@ -257,7 +263,7 @@ function CombatOut_OnEvent()
 		end
 	end
 
-	OnCombatRefresh()
+	CombatOut:OnCombatRefresh()
 end
 
 function CombatOut_OnUpdate(delta)

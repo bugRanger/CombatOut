@@ -7,3 +7,5 @@
 ## SavedVariables: CombatOut_Settings
 
 CombatOut.xml
+
+module\debuff.lua
