@@ -1,8 +1,11 @@
+local textures = {}
 local debuffs = {}
+local debuff_index = 0;
+
 
 local UPDATE_INTERVAL = 0.04
 local frame = CreateFrame("Frame", "CoDebuffWatcher")
-frame.time = GetTime() + UPDATE_INTERVAL
+frame.tick = GetTime() + UPDATE_INTERVAL
 
 frame:RegisterEvent("COMBAT_TEXT_UPDATE")
 frame:SetScript("OnEvent", function()
@@ -10,25 +13,35 @@ frame:SetScript("OnEvent", function()
 		return
 	end
 
-	if arg1 ~= 'AURA_START_HARMFUL' then
-		return
+	if arg1 == 'AURA_END_HARMFUL' then
+		debuff_index = debuff_index - 1
+		local texture = textures[arg2]
+		if texture ~= nil and debuffs[texture] == nil then
+			debuffs[texture].timeleft = -1
+		end
 	end
 
-	for i=0,16 do
-		local texture, _, _ = UnitDebuff("player", i)
+	if arg1 == 'AURA_START_HARMFUL' then
+		debuff_index = debuff_index + 1
+
+		local texture, _, _ = UnitDebuff("player", debuff_index)
 		if texture ~= nil and debuffs[texture] == nil then
+			textures[arg2] = texture
 			debuffs[texture] = debuffs[texture] or {}
 			debuffs[texture].timeleft = -1
 			debuffs[texture].timestamp = GetTime()
 		end
-	end
-end)
-frame:SetScript("OnUpdate", function()
-	if (this.time >= GetTime()) then
+
 		return
 	end
 
-	this.time = GetTime() + UPDATE_INTERVAL
+end)
+frame:SetScript("OnUpdate", function()
+	if (this.tick >= GetTime()) then
+		return
+	end
+
+	this.tick = GetTime() + UPDATE_INTERVAL
 
 	for i=0,31 do
 		local id, _ = GetPlayerBuff(i,"HARMFUL")
