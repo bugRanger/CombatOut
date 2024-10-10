@@ -32,7 +32,19 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 
+function debuffStorage:print()
+	print('counter: '..self.counter)
+	for i,item in ipairs(self.items) do
+		print(i..': '..item.name)
+	end
+	
+	for i,item in ipairs(self.items_by_index) do
+		print(i..': '..item.name)
+	end
+end
+
 function debuffStorage:reset()
+	-- self:print()
 	self.items = {}
 	self.items_by_index = {}
 	self.counter = 0
@@ -41,11 +53,9 @@ end
 function debuffStorage:push(name)
 	self.counter = self.counter + 1
 	local texture, _, _ = UnitDebuff('player', self.counter)
-
 	local item = self.items[name] or {}
-	item.id = item.id or nil
 	item.name = item.name or name
-	item.expiration = item.expiration or nil
+	item.expiration = item.expiration or -1
 	item.texture = item.texture or texture
 	item.counter = (item.counter  or 0) + 1
 
@@ -71,27 +81,36 @@ function debuffStorage:drop(name)
 end
 
 function debuffStorage:has_expirate(index, id)
-	local item = self.items_by_index[index]
-	if not item then
-		return false
-	end
-
 	local has_expirate = false
-	if not item.id then
-		item.id = id
-		item.expiration = GetTime() + GetPlayerBuffTimeLeft(id)
-	elseif item.id == id then
-		local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
-		if item.expiration < expiration then
-			item.expiration = expiration
-			has_expirate = true
+	local texture, _, _ = UnitDebuff('player', index)
+	local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
+
+	while self.counter > 0 do
+		local item = self.items_by_index[index]
+		if not item then
+			break
 		end
-	else
-		local prev_item = nil
-		for i=self.counter,index,-1 do
-			local curr_item = self.items_by_index[i]
-			self.items_by_index[i] = prev_item
-			prev_item = curr_item
+
+		if item.expiration == -1 then
+			item.expiration = expiration
+			break
+		elseif item.texture ~= texture then
+			local counter = self.counter
+			self:drop(item.name)
+
+			local prev_item = nil
+			for i=counter + 1,index,-1 do
+				local curr_item = self.items_by_index[i]
+				self.items_by_index[i] = prev_item
+				prev_item = curr_item
+			end
+		else
+			if item.expiration < expiration then
+				item.expiration = expiration
+				has_expirate = true
+			end
+
+			break
 		end
 	end
 
@@ -100,11 +119,19 @@ end
 
 function debuffStorage:try_update()
 	local has_update = false
-
+	local counter = 0
 	for index=0,31 do
 		local id, _ = GetPlayerBuff(index,"HARMFUL")
 		if id > -1 then
-			has_update = has_update or self:has_expirate(index + 1, id)
+			counter = counter + 1
+			has_update = self:has_expirate(index + 1, id) or has_update
+		end
+	end
+
+	for i=counter,self.counter do
+		if self.items_by_index[i + 1] ~= nil then
+			self:drop(self.items_by_index[i + 1].name)
+			self.items_by_index[i + 1] = nil
 		end
 	end
 
@@ -131,7 +158,7 @@ function combatRefresher:handle_event(arg1, arg2)
 		self:refresh_combat()
 		debuffStorage:push(arg2)
 	elseif arg1 == AURA_END_HARMFUL_EVENT then
-		debuffStorage:drop(arg2)
+		return
 	end
 end
 
@@ -159,7 +186,7 @@ local AURA_INDEX_STEP = 1
 
 local fixture = fixture or {}
 fixture.aura = {}
-fixture.aura_uids = {}
+fixture.aura_index = {}
 fixture.aura_count = 0
 fixture.time = 0
 fixture.time_step = 0
@@ -173,19 +200,20 @@ function fixture:reset()
 end
 
 function fixture:start_aura(uid, name, kind, texture, duration)
-	self.raise_event(AURA_START_HARMFUL_EVENT, name)
-
 	self.aura_count = self.aura_count + AURA_INDEX_STEP
 	local aura = {}
 	aura.index = self.aura_count
 	aura.name = name
 	aura.kind = kind
 	aura.texture = texture
-	aura.duration = duration
-	aura.start = self.time
 
 	self.aura[uid] = aura
-	self.aura_uids[aura.index] = uid
+	self.aura_index[aura.index] = aura
+
+	self.raise_event(AURA_START_HARMFUL_EVENT, name)
+
+	aura.duration = duration
+	aura.start = self.time
 
 end
 
@@ -202,18 +230,22 @@ function fixture:finish_aura(uid)
 		self.raise_event(AURA_END_HARMFUL_EVENT, aura.name)
 	end
 
+	local prev_aura = nil
+	for i=self.aura_count + 1, aura.index, -1 do
+		local curr_aura = self.aura_index[i]
+		if curr_aura then
+			curr_aura.index = curr_aura.index - 1
+		end
+
+		self.aura_index[i] = prev_aura
+		prev_aura = curr_aura
+	end
+
 	if self.aura_count > 0 then
 		self.aura_count = self.aura_count - AURA_INDEX_STEP
 	end
 
 	self.aura[uid] = nil
-
-	local prev_aura_uid = nil
-	for i=self.aura_count, aura.index, -1 do
-		local aura_uid = self.aura_uids[i]
-		self.aura_uids[i] = prev_aura_uid
-		prev_aura_uid = aura_uid
-	end
 end
 
 function fixture:advance_time(interval)
@@ -228,7 +260,7 @@ function fixture:set_callbacks(test_data)
 end
 
 function fixture:set_hooks()
-	local to_id = function(index)
+	local to_idx = function(index)
 		return (index + 1) * 2
 	end
 	local to_index = function(id)
@@ -236,7 +268,7 @@ function fixture:set_hooks()
 	end
 
 	_G['UnitDebuff'] = function(unit, index)
-		local aura = fixture.aura[index] 
+		local aura = fixture.aura_index[index]
 		if aura then
 			return aura.texture, nil, aura.kind
 		end
@@ -246,9 +278,9 @@ function fixture:set_hooks()
 	end
 
 	_G['GetPlayerBuff'] = function(index, filter)
-		local aura = fixture.aura[index + 1] 
+		local aura = fixture.aura_index[index + 1]
 		if aura then
-			return to_id(aura.index), nil
+			return to_idx(aura.index), nil
 		end
 
 		-- id, cancelling
@@ -256,7 +288,7 @@ function fixture:set_hooks()
 	end
 
 	_G['GetPlayerBuffTimeLeft'] = function(id)
-		local aura = fixture.aura[to_index(id)]
+		local aura = fixture.aura_index[to_index(id)]
 		if aura then
 			local remain  = aura.start + aura.duration
 			if remain > fixture.time then
