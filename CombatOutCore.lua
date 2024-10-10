@@ -253,7 +253,7 @@ function fixture:advance_time(interval)
 	self.raise_tick(self.time)
 end
 
-function fixture:set_callbacks(test_data)
+function fixture:set_data(test_data)
 	self.time_step = test_data.step_tick
 	self.raise_event = function(...) test_data.handle_event(test_data, ...) end
 	self.raise_tick = function(...) test_data.handle_tick(test_data, ...) end
@@ -329,7 +329,7 @@ end
 -- Test cases
 -- ============================================
 fixture:set_hooks()
-fixture:set_callbacks(combatRefresher)
+fixture:set_data(combatRefresher)
 
 -- start aura
 function start_aura_when_out_combat_then_in_combat()
@@ -389,6 +389,38 @@ function start_aura_when_in_combat_then_changed_timestamp()
 
 	-- Assert
 	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
+function start_aura_when_duplicate_aura_then_in_combat()
+	-- Arrange
+	fixture:reset()
+	combatRefresher:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function start_aura_when_duplicate_aura_then_changed_timestamp()
+	-- Arrange
+	fixture:reset()
+	combatRefresher:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, fixture.time)
 end
 
 -- refresh aura
@@ -460,6 +492,42 @@ function refresh_aura_when_out_combat_then_changed_timestamp()
 	fixture.assert_eq(combatRefresher.timestamp, fixture.time)
 end
 
+function refresh_aura_when_duplicate_aura_then_in_combat()
+	-- Arrange
+	fixture:reset()
+	combatRefresher:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:refresh_aura(2)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function refresh_aura_when_duplicate_aura_then_changed_timestamp()
+	-- Arrange
+	fixture:reset()
+	combatRefresher:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:refresh_aura(2)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, fixture.time)
+end
+
 -- finish aura
 function finish_aura_when_in_combat_then_in_combat()
 	-- Arrange
@@ -525,6 +593,47 @@ function finish_aura_when_out_combat_then_unchanged_timestamp()
 
 	-- Act
 	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
+function finish_aura_when_duplicate_aura_then_out_combat()
+	-- Arrange
+	fixture:reset()
+	combatRefresher:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	combatRefresher.in_combat = false
+
+	-- Act
+	fixture:finish_aura(2)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(not combatRefresher.in_combat)
+end
+
+function finish_aura_when_duplicate_aura_then_unchanged_timestamp()
+	-- Arrange
+	fixture:reset()
+	combatRefresher:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	local expected = fixture.time
+	combatRefresher.in_combat = false
+
+	-- Act
+	fixture:finish_aura(2)
 	fixture:advance_time()
 
 	-- Assert
@@ -797,3 +906,12 @@ remove_mid_aura_when_in_combat_then_in_combat()
 remove_mid_aura_when_in_combat_then_unchanged_timestamp()
 remove_last_aura_when_in_combat_then_in_combat()
 remove_last_aura_when_in_combat_then_unchanged_timestamp()
+
+start_aura_when_duplicate_aura_then_in_combat()
+start_aura_when_duplicate_aura_then_changed_timestamp()
+
+refresh_aura_when_duplicate_aura_then_in_combat()
+refresh_aura_when_duplicate_aura_then_changed_timestamp()
+
+finish_aura_when_duplicate_aura_then_out_combat()
+finish_aura_when_duplicate_aura_then_unchanged_timestamp()
