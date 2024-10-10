@@ -27,27 +27,117 @@ end
 local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
 local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 
+local debuffStorage = debuffStorage or {}
+debuffStorage.items = {}
+debuffStorage.items_by_index = {}
+debuffStorage.counter = 0
+
+function debuffStorage:push(name)
+	self.counter = self.counter + 1
+	local texture, _, _ = UnitDebuff('player', self.counter)
+
+	local item = self.items[name] or {}
+	item.id = nil
+	item.expiration = nil
+	item.texture = texture
+	item.counter = (item.counter  or 0) + 1
+
+	self.items[name] = item
+	self.items_by_index[self.counter] = item
+end
+
+function debuffStorage:drop(name)
+	if self.counter > 0 then
+		self.counter = self.counter - 1
+	end
+
+	local item = self.items[name]
+	if item then
+		if item.counter > 0 then
+			item.counter = item.counter - 1
+		end
+
+		if item.counter == 0 then
+			self.items[name] = nil
+		end
+	end
+end
+
+-- Возможно ID не меняется после перестроения, надо проверить.
+function debuffStorage:has_expirate(index, id)
+	local item = self.items_by_index[index]
+	if not item then
+		return false
+	end
+
+	local has_expirate = false
+	if not item.id then
+		item.id = id
+		item.expiration = GetTime() + GetPlayerBuffTimeLeft(id)
+	elseif item.id == id then
+		local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
+		if item.expiration < expiration then
+			item.expiration = expiration
+			has_expirate = true
+		end
+	else
+		-- Remove its debuff
+		return false
+	end
+
+	-- local texture, _, kind = UnitDebuff("player", index)
+	-- local prev_expiration = -1 -- find and expiration from storage
+	-- local curr_expiration = GetTime() + GetPlayerBuffTimeLeft(id)
+	-- if prev_expiration == -1 then
+		-- prev_expiration = curr_expiration
+	-- else
+	-- end
+	return has_expirate
+end
+
+function debuffStorage:try_update()
+	local has_update = false
+
+	for index=0,31 do
+		local id, _ = GetPlayerBuff(index,"HARMFUL")
+		if id > -1 then
+			has_update = has_update or self:has_expirate(index + 1, id)
+		end
+	end
+
+	return has_update
+end
+
 local combatRefresher = combatRefresher or {}
 combatRefresher.in_combat = false
 combatRefresher.timestamp = 0
 combatRefresher.step_tick = 0.4
 combatRefresher.next_tick = 0
 
-function combatRefresher:HandleEvent(arg1, arg2)
+function combatRefresher:handle_event(arg1, arg2)
 	if arg1 == AURA_START_HARMFUL_EVENT then
-		self.in_combat = true
-		self.timestamp = GetTime()
+		self:refresh_combat()
+		debuffStorage:push(arg2)
 	elseif arg1 == AURA_END_HARMFUL_EVENT then
-		return
+		debuffStorage:drop(arg2)
 	end
 end
 
-function combatRefresher:HandleTick(tick)
+function combatRefresher:handle_tick(tick)
 	if self.next_tick > tick then
 		return
 	end
 
 	self.next_tick = tick + self.step_tick
+
+	if debuffStorage:try_update() then
+		self:refresh_combat()
+	end
+end
+
+function combatRefresher:refresh_combat()
+	self.in_combat = true
+	self.timestamp = GetTime()
 end
 
 -- ============================================
@@ -56,18 +146,18 @@ end
 local AURA_INDEX_STEP = 1
 
 local fixture = fixture or {}
-fixture.time = 0
-fixture.next_tick = 0
 fixture.aura = {}
 fixture.aura_uids = {}
 fixture.aura_count = 0
+fixture.time = 0
+fixture.time_step = 0
 fixture.raise_event = nil
 fixture.raise_tick = nil
 
-function fixture:set(test_data)
-	self.raise_event = function(...) test_data.HandleEvent(test_data, ...) end
-	self.raise_tick = function(...) test_data.HandleTick(test_data, ...) end
-	self.next_tick = test_data.next_tick
+function fixture:reset()
+	self.aura = {}
+	self.aura_uids = {}
+	self.aura_count = 0
 end
 
 function fixture:start_aura(uid, name, kind, texture, duration)
@@ -81,8 +171,8 @@ function fixture:start_aura(uid, name, kind, texture, duration)
 	aura.texture = texture
 	aura.duration = duration
 	aura.start = self.time
-	self.aura[uid] = aura
 
+	self.aura[uid] = aura
 	self.aura_uids[aura.index] = uid
 
 end
@@ -90,7 +180,7 @@ end
 function fixture:refresh_aura(uid, duration)
 	if self.aura[uid] then
 		self.aura[uid].start = self.time
-		self.aura[uid].duration = duration
+		self.aura[uid].duration = self.aura[uid].duration or duration
 	end
 end
 
@@ -115,15 +205,28 @@ function fixture:finish_aura(uid)
 end
 
 function fixture:advance_time(interval)
-	interval = interval or self.next_tick
-	self.time = self.time + interval
+	self.time = self.time + (interval or self.time_step)
 	self.raise_tick(self.time)
 end
 
+function fixture:set_callbacks(test_data)
+	self.time_step = test_data.step_tick
+	self.raise_event = function(...) test_data.handle_event(test_data, ...) end
+	self.raise_tick = function(...) test_data.handle_tick(test_data, ...) end
+end
+
 function fixture:set_hooks()
+	local to_id = function(index)
+		return (index + 1) * 2
+	end
+	local to_index = function(id)
+		return id / 2 - 1
+	end
+
 	_G['UnitDebuff'] = function(unit, index)
-		if fixture.aura[index] then
-			return fixture.aura[index].texture, nil, self.aura[index].kind
+		local aura = fixture.aura[index] 
+		if aura then
+			return aura.texture, nil, aura.kind
 		end
 
 		-- Texture, Stack, Type
@@ -131,17 +234,19 @@ function fixture:set_hooks()
 	end
 
 	_G['GetPlayerBuff'] = function(index, filter)
-		if fixture.aura[index] then
-			return fixture.aura[index].index * 2, nil
+		local aura = fixture.aura[index + 1] 
+		if aura then
+			return to_id(aura.index), nil
 		end
 
 		-- id, cancelling
-		return nil, nil
+		return -1, nil
 	end
 
 	_G['GetPlayerBuffTimeLeft'] = function(id)
-		if fixture.aura[index /2] then
-			local remain  = fixture.aura[index].start + fixture.aura[index].duration
+		local aura = fixture.aura[to_index(id)]
+		if aura then
+			local remain  = aura.start + aura.duration
 			if remain > fixture.time then
 				return remain - fixture.time
 			end
@@ -179,11 +284,12 @@ end
 -- ============================================
 -- Test cases
 -- ============================================
-fixture.set_hooks()
+fixture:set_hooks()
+fixture:set_callbacks(combatRefresher)
 
 function start_aura_when_out_combat_then_in_combat()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 
 	-- Act
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
@@ -195,8 +301,8 @@ end
 
 function start_aura_when_out_combat_then_changed_timestamp()
 	-- Arrange
+	fixture:reset()
 	local expected = fixture.time
-	fixture:set(combatRefresher)
 
 	-- Act
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
@@ -208,7 +314,7 @@ end
 
 function start_aura_when_in_combat_then_in_combat()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	combatRefresher.in_combat = true
 
 	-- Act
@@ -221,9 +327,9 @@ end
 
 function start_aura_when_in_combat_then_changed_timestamp()
 	-- Arrange
+	fixture:reset()
 	local expected = fixture.time
 
-	fixture:set(combatRefresher)
 	combatRefresher.in_combat = true
 
 	-- Act
@@ -236,7 +342,7 @@ end
 
 function refresh_aura_when_in_combat_then_in_combat()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -250,7 +356,7 @@ end
 
 function refresh_aura_when_in_combat_then_changed_timestamp()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -264,7 +370,7 @@ end
 
 function refresh_aura_when_out_combat_then_in_combat()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -280,7 +386,7 @@ end
 
 function refresh_aura_when_out_combat_then_changed_timestamp()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -296,7 +402,7 @@ end
 
 function finish_aura_when_in_combat_then_in_combat()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -310,9 +416,9 @@ end
 
 function finish_aura_when_in_combat_then_unchanged_timestamp()
 	-- Arrange
+	fixture:reset()
 	local expected = fixture.time
 
-	fixture:set(combatRefresher)
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -326,7 +432,7 @@ end
 
 function finish_aura_when_out_combat_then_out_combat()
 	-- Arrange
-	fixture:set(combatRefresher)
+	fixture:reset()
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -342,9 +448,9 @@ end
 
 function finish_aura_when_out_combat_then_unchanged_timestamp()
 	-- Arrange
+	fixture:reset()
 	local expected = fixture.time
 
-	fixture:set(combatRefresher)
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -363,12 +469,12 @@ start_aura_when_out_combat_then_changed_timestamp()
 start_aura_when_in_combat_then_in_combat()
 start_aura_when_in_combat_then_changed_timestamp()
 
-refresh_aura_when_in_combat_then_in_combat()
-refresh_aura_when_in_combat_then_changed_timestamp()
 refresh_aura_when_out_combat_then_in_combat()
 refresh_aura_when_out_combat_then_changed_timestamp()
+refresh_aura_when_in_combat_then_in_combat()
+refresh_aura_when_in_combat_then_changed_timestamp()
 
-finish_aura_when_in_combat_then_in_combat()
-finish_aura_when_in_combat_then_unchanged_timestamp()
 finish_aura_when_out_combat_then_out_combat()
 finish_aura_when_out_combat_then_unchanged_timestamp()
+finish_aura_when_in_combat_then_in_combat()
+finish_aura_when_in_combat_then_unchanged_timestamp()
