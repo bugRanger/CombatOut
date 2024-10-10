@@ -16,20 +16,27 @@ function GetPlayerBuffTimeLeft(id)
   return nil
 end
 
+function GetTime()
+	-- time in inner ticks
+	return nil
+end
+
 -- ============================================
--- impl 
+-- impl Addon
 -- ============================================
 local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
 local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 
 local combatRefresher = combatRefresher or {}
 combatRefresher.in_combat = false
+combatRefresher.timestamp = 0
 combatRefresher.step_tick = 0.4
 combatRefresher.next_tick = 0
 
 function combatRefresher:HandleEvent(arg1, arg2)
 	if arg1 == AURA_START_HARMFUL_EVENT then
 		self.in_combat = true
+		self.timestamp = GetTime()
 	elseif arg1 == AURA_END_HARMFUL_EVENT then
 		return
 	end
@@ -55,7 +62,7 @@ fixture.aura = {}
 fixture.aura_uids = {}
 fixture.aura_count = 0
 fixture.raise_event = nil
-fixture.raise_tick = 0
+fixture.raise_tick = nil
 
 function fixture:set(test_data)
 	self.raise_event = function(...) test_data.HandleEvent(test_data, ...) end
@@ -143,6 +150,10 @@ function fixture:set_hooks()
 		-- timeleft
 		return nil
 	end
+
+	_G['GetTime'] = function()
+		return fixture.time
+	end
 end
 
 function __FUNC__() return debug.getinfo(3, 'n').name end
@@ -156,9 +167,20 @@ function fixture.assert(value)
 	end
 end
 
+function fixture.assert_eq(left, right)
+	if left == right then
+		print('OK - '..__FUNC__())
+	else
+		print('FAIL - '..__FUNC__())
+		error('assertion `left == right` failed! \n  left: '..(left or 'nil')..'\n right: '..(right or 'nil'))
+	end
+end
+
 -- ============================================
 -- Test cases
 -- ============================================
+fixture.set_hooks()
+
 function start_aura_when_out_combat_then_in_combat()
 	-- Arrange
 	fixture:set(combatRefresher)
@@ -169,6 +191,19 @@ function start_aura_when_out_combat_then_in_combat()
 
 	-- Assert
 	fixture.assert(combatRefresher.in_combat)
+end
+
+function start_aura_when_out_combat_then_changed_timestamp()
+	-- Arrange
+	local expected = fixture.time
+	fixture:set(combatRefresher)
+
+	-- Act
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
 end
 
 function start_aura_when_in_combat_then_in_combat()
@@ -184,25 +219,117 @@ function start_aura_when_in_combat_then_in_combat()
 	fixture.assert(combatRefresher.in_combat)
 end
 
-function finish_aura_when_in_combat_then_in_combat()
+function start_aura_when_in_combat_then_changed_timestamp()
+	-- Arrange
+	local expected = fixture.time
+
+	fixture:set(combatRefresher)
+	combatRefresher.in_combat = true
+
+	-- Act
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
+function refresh_aura_when_in_combat_then_in_combat()
 	-- Arrange
 	fixture:set(combatRefresher)
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-
 	fixture:advance_time()
-	fixture:finish_aura(1)
 
 	-- Act
+	fixture:refresh_aura(1)
 	fixture:advance_time()
 
 	-- Assert
 	fixture.assert(combatRefresher.in_combat)
 end
 
+function refresh_aura_when_in_combat_then_changed_timestamp()
+	-- Arrange
+	fixture:set(combatRefresher)
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:refresh_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, fixture.time)
+end
+
+function refresh_aura_when_out_combat_then_in_combat()
+	-- Arrange
+	fixture:set(combatRefresher)
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	combatRefresher.in_combat = false
+
+	-- Act
+	fixture:refresh_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function refresh_aura_when_out_combat_then_changed_timestamp()
+	-- Arrange
+	fixture:set(combatRefresher)
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	combatRefresher.in_combat = false
+
+	-- Act
+	fixture:refresh_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, fixture.time)
+end
+
+function finish_aura_when_in_combat_then_in_combat()
+	-- Arrange
+	fixture:set(combatRefresher)
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function finish_aura_when_in_combat_then_unchanged_timestamp()
+	-- Arrange
+	local expected = fixture.time
+
+	fixture:set(combatRefresher)
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
 function finish_aura_when_out_combat_then_out_combat()
 	-- Arrange
 	fixture:set(combatRefresher)
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
 	combatRefresher.in_combat = false
 
 	-- Act
@@ -213,7 +340,35 @@ function finish_aura_when_out_combat_then_out_combat()
 	fixture.assert(not combatRefresher.in_combat)
 end
 
-start_aura_when_in_combat_then_in_combat()
+function finish_aura_when_out_combat_then_unchanged_timestamp()
+	-- Arrange
+	local expected = fixture.time
+
+	fixture:set(combatRefresher)
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:advance_time()
+
+	combatRefresher.in_combat = false
+
+	-- Act
+	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
 start_aura_when_out_combat_then_in_combat()
+start_aura_when_out_combat_then_changed_timestamp()
+start_aura_when_in_combat_then_in_combat()
+start_aura_when_in_combat_then_changed_timestamp()
+
+refresh_aura_when_in_combat_then_in_combat()
+refresh_aura_when_in_combat_then_changed_timestamp()
+refresh_aura_when_out_combat_then_in_combat()
+refresh_aura_when_out_combat_then_changed_timestamp()
+
 finish_aura_when_in_combat_then_in_combat()
+finish_aura_when_in_combat_then_unchanged_timestamp()
 finish_aura_when_out_combat_then_out_combat()
+finish_aura_when_out_combat_then_unchanged_timestamp()
