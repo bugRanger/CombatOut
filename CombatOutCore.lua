@@ -287,6 +287,7 @@ end
 fixture:set_hooks()
 fixture:set_callbacks(combatRefresher)
 
+-- start aura
 function start_aura_when_out_combat_then_in_combat()
 	-- Arrange
 	fixture:reset()
@@ -302,6 +303,7 @@ end
 function start_aura_when_out_combat_then_changed_timestamp()
 	-- Arrange
 	fixture:reset()
+
 	local expected = fixture.time
 
 	-- Act
@@ -315,6 +317,7 @@ end
 function start_aura_when_in_combat_then_in_combat()
 	-- Arrange
 	fixture:reset()
+
 	combatRefresher.in_combat = true
 
 	-- Act
@@ -328,8 +331,8 @@ end
 function start_aura_when_in_combat_then_changed_timestamp()
 	-- Arrange
 	fixture:reset()
-	local expected = fixture.time
 
+	local expected = fixture.time
 	combatRefresher.in_combat = true
 
 	-- Act
@@ -340,9 +343,11 @@ function start_aura_when_in_combat_then_changed_timestamp()
 	fixture.assert_eq(combatRefresher.timestamp, expected)
 end
 
+-- refresh aura
 function refresh_aura_when_in_combat_then_in_combat()
 	-- Arrange
 	fixture:reset()
+
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -357,6 +362,7 @@ end
 function refresh_aura_when_in_combat_then_changed_timestamp()
 	-- Arrange
 	fixture:reset()
+
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -371,6 +377,7 @@ end
 function refresh_aura_when_out_combat_then_in_combat()
 	-- Arrange
 	fixture:reset()
+
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -387,6 +394,7 @@ end
 function refresh_aura_when_out_combat_then_changed_timestamp()
 	-- Arrange
 	fixture:reset()
+
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -400,9 +408,11 @@ function refresh_aura_when_out_combat_then_changed_timestamp()
 	fixture.assert_eq(combatRefresher.timestamp, fixture.time)
 end
 
+-- finish aura
 function finish_aura_when_in_combat_then_in_combat()
 	-- Arrange
 	fixture:reset()
+
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -417,8 +427,8 @@ end
 function finish_aura_when_in_combat_then_unchanged_timestamp()
 	-- Arrange
 	fixture:reset()
-	local expected = fixture.time
 
+	local expected = fixture.time
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -433,6 +443,7 @@ end
 function finish_aura_when_out_combat_then_out_combat()
 	-- Arrange
 	fixture:reset()
+
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -449,8 +460,8 @@ end
 function finish_aura_when_out_combat_then_unchanged_timestamp()
 	-- Arrange
 	fixture:reset()
-	local expected = fixture.time
 
+	local expected = fixture.time
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:advance_time()
 
@@ -458,6 +469,112 @@ function finish_aura_when_out_combat_then_unchanged_timestamp()
 
 	-- Act
 	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
+-- remove aura
+function remove_first_aura_when_in_combat_then_in_combat()
+	-- Arrange
+	fixture:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
+	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function remove_first_aura_when_in_combat_then_unchanged_timestamp()
+	-- Arrange
+	fixture:reset()
+
+	local expected = fixture.time
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
+	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(1)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
+function remove_mid_aura_when_in_combat_then_in_combat()
+	-- Arrange
+	fixture:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
+	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(2)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function remove_mid_aura_when_in_combat_then_unchanged_timestamp()
+	-- Arrange
+	fixture:reset()
+
+	local expected = fixture.time
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
+	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(2)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(combatRefresher.timestamp, expected)
+end
+
+function remove_last_aura_when_in_combat_then_in_combat()
+	-- Arrange
+	fixture:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
+	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(3)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(combatRefresher.in_combat)
+end
+
+function remove_last_aura_when_in_combat_then_unchanged_timestamp()
+	-- Arrange
+	fixture:reset()
+
+	local expected = fixture.time
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
+	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
+	fixture:advance_time()
+
+	-- Act
+	fixture:finish_aura(3)
 	fixture:advance_time()
 
 	-- Assert
@@ -478,3 +595,10 @@ finish_aura_when_out_combat_then_out_combat()
 finish_aura_when_out_combat_then_unchanged_timestamp()
 finish_aura_when_in_combat_then_in_combat()
 finish_aura_when_in_combat_then_unchanged_timestamp()
+
+remove_first_aura_when_in_combat_then_in_combat()
+remove_first_aura_when_in_combat_then_unchanged_timestamp()
+remove_mid_aura_when_in_combat_then_in_combat()
+remove_mid_aura_when_in_combat_then_unchanged_timestamp()
+remove_last_aura_when_in_combat_then_in_combat()
+remove_last_aura_when_in_combat_then_unchanged_timestamp()
