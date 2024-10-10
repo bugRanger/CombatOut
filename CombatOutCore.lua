@@ -17,8 +17,8 @@ function GetPlayerBuffTimeLeft(id)
 end
 
 function GetTime()
-	-- time in inner ticks
-	return nil
+  -- time in inner ticks
+  return nil
 end
 
 -- ============================================
@@ -43,10 +43,10 @@ function debuffStorage:push(name)
 	local texture, _, _ = UnitDebuff('player', self.counter)
 
 	local item = self.items[name] or {}
-	item.id = nil
-	item.name = name
-	item.expiration = nil
-	item.texture = texture
+	item.id = item.id or nil
+	item.name = item.name or name
+	item.expiration = item.expiration or nil
+	item.texture = item.texture or texture
 	item.counter = (item.counter  or 0) + 1
 
 	self.items[name] = item
@@ -70,7 +70,6 @@ function debuffStorage:drop(name)
 	end
 end
 
--- Возможно ID не меняется после перестроения(завершилась дебаф), надо проверить.
 function debuffStorage:has_expirate(index, id)
 	local item = self.items_by_index[index]
 	if not item then
@@ -88,8 +87,6 @@ function debuffStorage:has_expirate(index, id)
 			has_expirate = true
 		end
 	else
-		self:drop(item.name)
-
 		local prev_item = nil
 		for i=self.counter,index,-1 do
 			local curr_item = self.items_by_index[i]
@@ -170,7 +167,6 @@ fixture.raise_event = nil
 fixture.raise_tick = nil
 
 function fixture:reset()
-combatRefresher:reset()
 	self.aura = {}
 	self.aura_uids = {}
 	self.aura_count = 0
@@ -180,7 +176,7 @@ function fixture:start_aura(uid, name, kind, texture, duration)
 	self.raise_event(AURA_START_HARMFUL_EVENT, name)
 
 	self.aura_count = self.aura_count + AURA_INDEX_STEP
-	local aura = self.aura[uid]  or {}
+	local aura = {}
 	aura.index = self.aura_count
 	aura.name = name
 	aura.kind = kind
