@@ -9,3 +9,4 @@
 CombatOut.xml
 
 module\debuff.lua
+module\debuff_frame.lua
