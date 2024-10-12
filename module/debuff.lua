@@ -13,6 +13,10 @@ local debuffStorage = debuffStorage or {}
 debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
+debuffStorage.blacklist = {
+	['Earthbind'] = true, 
+	['Earthbind Totem'] = true
+}
 
 function debuffStorage:reset()
 	self.items = {}
@@ -20,7 +24,11 @@ function debuffStorage:reset()
 	self.counter = 0
 end
 
-function debuffStorage:push(name)
+function debuffStorage:try_push(name)
+	if self.blacklist[name] then
+		return false
+	end
+
 	self.counter = self.counter + 1
 	local texture, _, _ = UnitDebuff('player', self.counter)
 	local item = self.items[name] or {}
@@ -31,6 +39,7 @@ function debuffStorage:push(name)
 
 	self.items[name] = item
 	self.items_by_index[self.counter] = item
+	return true
 end
 
 function debuffStorage:drop(name)
@@ -126,8 +135,9 @@ end
 
 function debuffCombatRefresher:handle_event(arg1, arg2)
 	if arg1 == AURA_START_HARMFUL_EVENT then
-		self:refresh_combat()
-		debuffStorage:push(arg2)
+		if debuffStorage:try_push(arg2)then
+			self:refresh_combat()
+		end
 	elseif arg1 == AURA_END_HARMFUL_EVENT then
 		return
 	end

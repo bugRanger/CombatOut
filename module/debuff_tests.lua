@@ -270,6 +270,34 @@ function start_aura_when_duplicate_aura_then_changed_timestamp()
 	fixture.assert_eq(test_data.timestamp, fixture.time)
 end
 
+function start_aura_when_non_combat_aura_then_out_combat()
+	-- Arrange
+	fixture:reset()
+	test_data:reset()
+
+	-- Act
+	fixture:start_aura(1, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
+	fixture:start_aura(2, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert(not test_data.in_combat)
+end
+
+function start_aura_when_non_combat_aura_then_unchanged_timestamp()
+	-- Arrange
+	fixture:reset()
+	test_data:reset()
+
+	-- Act
+	fixture:start_aura(1, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
+	fixture:start_aura(2, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
+	fixture:advance_time()
+
+	-- Assert
+	fixture.assert_eq(test_data.timestamp, 0)
+end
+
 -- refresh aura
 function refresh_aura_when_in_combat_then_in_combat()
 	-- Arrange
@@ -744,6 +772,8 @@ start_aura_when_out_combat_then_in_combat()
 start_aura_when_out_combat_then_changed_timestamp()
 start_aura_when_in_combat_then_in_combat()
 start_aura_when_in_combat_then_changed_timestamp()
+start_aura_when_non_combat_aura_then_out_combat()
+start_aura_when_non_combat_aura_then_unchanged_timestamp()
 
 refresh_aura_when_out_combat_then_in_combat()
 refresh_aura_when_out_combat_then_changed_timestamp()
