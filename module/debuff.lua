@@ -14,6 +14,8 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 debuffStorage.blacklist = {
+	-- Hunter
+	["Hunter's Mark"] = true,
 	-- Mage
 	['Detect Magic'] = true, 
 	-- Shaman
