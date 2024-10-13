@@ -14,8 +14,15 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 debuffStorage.blacklist = {
+	-- Mage
+	['Detect Magic'] = true, 
+	-- Shaman
 	['Earthbind'] = true, 
-	['Earthbind Totem'] = true
+	['Earthbind Totem'] = true,
+	-- Battleground
+	['Speed'] = true,
+	['Restoration'] = true,
+	['Berserking'] = true,
 }
 
 function debuffStorage:reset()
