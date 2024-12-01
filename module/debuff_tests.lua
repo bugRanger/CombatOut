@@ -298,6 +298,7 @@ function start_aura_when_non_combat_aura_then_unchanged_timestamp()
 	fixture:start_aura(6, "Berserking", "none", "TEXTURE\\BERSERKING", 20)
 	fixture:start_aura(7, "Hunter's Mark", "none", "TEXTURE\\HUNTER_MARK", 20)
 	fixture:start_aura(8, "Fleeing", "none", "TEXTURE\\FLEEING", 20)
+	fixture:start_aura(9, "Blood Fury", "none", "TEXTURE\\BLOOD_FURY", 20)
 	fixture:advance_time()
 
 	-- Assert

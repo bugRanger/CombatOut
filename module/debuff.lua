@@ -16,6 +16,7 @@ debuffStorage.counter = 0
 debuffStorage.blacklist = {
 	-- Racial
 	["Fleeing"] = true, -- Debuff from Exit Strategy (Racial Goblin).
+	["Blood Fury"] = true, -- Debuff from Blood Fury (Racial Orc).	
 	-- Hunter
 	["Hunter's Mark"] = true,
 	-- Mage
