@@ -14,6 +14,10 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 debuffStorage.blacklist = {
+	-- Deviate Fish effects
+	["Party Time!"] = true,
+	["Sleepy"] = true,
+	["Shrink"] = true,
 	-- Racial
 	["Fleeing"] = true, -- Debuff from Exit Strategy (Racial Goblin).
 	["Blood Fury"] = true, -- Debuff from Blood Fury (Racial Orc).	
