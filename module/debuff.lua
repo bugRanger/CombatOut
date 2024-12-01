@@ -14,6 +14,8 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 debuffStorage.blacklist = {
+	-- Racial
+	["Fleeing"] = true, -- Debuff from Exit Strategy (Racial Goblin).
 	-- Hunter
 	["Hunter's Mark"] = true,
 	-- Mage
