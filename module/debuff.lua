@@ -70,10 +70,10 @@ function debuffStorage:drop(name)
 	end
 end
 
-function debuffStorage:has_expirate(index, id)
+function debuffStorage:has_update(index, id)
 	local texture, _, _ = UnitDebuff('player', index)
 
-	local has_expirate = false
+	local has_update = false
 	while self.counter > 0 do
 		local item = self.items_by_index[index]
 		if not item then
@@ -98,14 +98,14 @@ function debuffStorage:has_expirate(index, id)
 		else
 			if item.expiration < expiration then
 				item.expiration = expiration
-				has_expirate = true
+				has_update = true
 			end
 
 			break
 		end
 	end
 
-	return has_expirate
+	return has_update
 end
 
 function debuffStorage:try_update()
@@ -115,7 +115,7 @@ function debuffStorage:try_update()
 		local id, _ = GetPlayerBuff(index,"HARMFUL")
 		if id > -1 then
 			counter = counter + 1
-			has_update = self:has_expirate(index + 1, id) or has_update
+			has_update = self:has_update(index + 1, id) or has_update
 		end
 	end
 
