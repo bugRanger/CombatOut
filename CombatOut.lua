@@ -5,9 +5,6 @@ local SlashCommandShort = "/co"
 
 local Parameters = {}
 Parameters.debugMode = false
-Parameters.latency = 0
-Parameters.duration = 0
-Parameters.finish_at = 0
 Parameters.event_types = {
 	["AURA_START_HARMFUL"] = true, 
 	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
@@ -21,6 +18,11 @@ Parameters.event_types = {
 	["SPELL_DISPEL_FAILED"] = true, --caster failed to dispel buff/debuff
 	["SPELL_PERIODIC_DISPEL_FAILED"] = true, --caster failed to dispel dot/hot
 }
+
+local CombatState = {}
+CombatState.latency = 0
+CombatState.duration = 0
+CombatState.finish_at = 0
 
 local defaults = {
 	x = 0,
@@ -79,23 +81,23 @@ function CombatOut:Debug(msg)
 end
 
 function CombatOut:OnCombatIn()
-	Parameters.duration = 6
-	Parameters.finish_at = GetTime() + Parameters.duration
+	CombatState.duration = 6
+	CombatState.finish_at = GetTime() + CombatState.duration
 	debug("handle event - in combat")
 end
 
 function CombatOut:OnCombatRefresh(latency)
 	latency = latency or 0
-	Parameters.duration = 6 + latency
-	Parameters.finish_at = GetTime() + Parameters.duration
+	CombatState.duration = 6 + latency
+	CombatState.finish_at = GetTime() + CombatState.duration
 	debug("handle event - refresh combat")
 end
 
 function CombatOut:OnCombatOut()
-	local latency = math.floor((GetTime() - Parameters.finish_at) * 1000)
-	Parameters.finish_at = 0
-	Parameters.duration = 0
-	Parameters.latency = latency
+	local latency = math.floor((GetTime() - CombatState.finish_at) * 1000)
+	CombatState.finish_at = 0
+	CombatState.duration = 0
+	CombatState.latency = latency
 	debug(string.format("handle event - out combat (latency:%s ms)", latency))
 end
 
@@ -131,11 +133,11 @@ local function UpdateAppearance()
 end
 
 local function UpdateDisplay()
-	if (Parameters.duration <= 0) then
+	if (CombatState.duration <= 0) then
 		CombatOut_FrameTime:Hide()
 		CombatOut_Frame:Hide()
 	else
-		local width = (Parameters.duration / 6 ) * CombatOut_Settings["w"]
+		local width = (CombatState.duration / 6 ) * CombatOut_Settings["w"]
 		if width > 0 then
 			CombatOut_FrameTime:SetVertexColor(CombatOut_Settings["colorR"], CombatOut_Settings["colorG"], CombatOut_Settings["colorB"])
 			CombatOut_FrameTime:SetWidth(width)
@@ -146,7 +148,7 @@ local function UpdateDisplay()
 		CombatOut_FrameShadowTime:SetWidth(width)
 		CombatOut_FrameShadowTime:Show()
 
-		CombatOut_FrameText:SetText(string.sub(Parameters.duration, 1, 3))
+		CombatOut_FrameText:SetText(string.sub(CombatState.duration, 1, 3))
 		CombatOut_Frame:SetAlpha(CombatOut_Settings["a"])
 	end
 end
@@ -267,10 +269,10 @@ function CombatOut_OnEvent()
 end
 
 function CombatOut_OnUpdate(delta)
-	if (Parameters.duration > 0) then
-		Parameters.duration = Parameters.duration - delta
-		if (Parameters.duration < 0) then
-			Parameters.duration = 0
+	if (CombatState.duration > 0) then
+		CombatState.duration = CombatState.duration - delta
+		if (CombatState.duration < 0) then
+			CombatState.duration = 0
 		end
 	end
 
