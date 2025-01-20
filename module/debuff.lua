@@ -209,7 +209,7 @@ end
 
 function debuffCombatRefresher:handle_tick(tick)
 	if self.next_tick > tick then
-		return
+		return false
 	end
 
 	self.next_tick = tick + self.step_tick
