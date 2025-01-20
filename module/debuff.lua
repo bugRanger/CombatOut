@@ -14,6 +14,8 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 debuffStorage.blacklist = {
+	-- First aid effects
+	["Recently Bandaged"] = true,
 	-- Deviate Fish effects
 	["Party Time!"] = true,
 	["Sleepy"] = true,
@@ -28,6 +30,8 @@ debuffStorage.blacklist = {
 	-- Shaman
 	['Earthbind'] = true, 
 	['Earthbind Totem'] = true,
+	-- Paladin
+	['Forbearance'] = true, 
 	-- Battleground
 	['Speed'] = true,
 	['Restoration'] = true,
@@ -51,84 +55,132 @@ function debuffStorage:try_push(name)
 	item.name = item.name or name
 	item.expiration = item.expiration or -1
 	item.texture = item.texture or texture
-	item.counter = (item.counter  or 0) + 1
+	item.counter = (item.counter or 0) + 1
 
 	self.items[name] = item
 	self.items_by_index[self.counter] = item
+
+	-- print('add aura: '..name)
 	return true
 end
 
 function debuffStorage:drop(name)
+	-- print('drop aura: '..name)
 	local item = self.items[name]
 	if item then
-		if item.counter > 0 then
-			item.counter = item.counter - 1
+		if self.counter > 0 then
+			self.counter = self.counter - 1
 		end
 
-		if item.counter == 0 then
-			if self.counter > 0 then
-				self.counter = self.counter - 1
+		if item.counter > 0 then
+			item.counter = item.counter - 1
+			if item.counter == 0 then
+				self.items[name] = nil
 			end
-
-			self.items[name] = nil
 		end
 	end
 end
 
-function debuffStorage:has_update(index, id)
-	local texture, _, _ = UnitDebuff('player', index)
+function debuffStorage:zip(remain, total)
+	local curr_index = 1
+	local next_index = 2
+	local swap_counter = remain
 
+	while next_index < total + 2 do
+		if self.items_by_index[curr_index] then
+			curr_index = curr_index + 1
+			next_index = next_index + 1
+		else
+			while next_index < total + 1 do				
+				if self.items_by_index[next_index] then
+					break
+				else
+					next_index = next_index + 1
+				end
+			end
+	
+			if swap_counter > 0 then
+				self.items_by_index[curr_index] = self.items_by_index[next_index]
+				self.items_by_index[next_index] = nil
+				swap_counter = swap_counter - 1
+			else
+				self.items_by_index[next_index] = nil
+			end
+
+			curr_index = curr_index + 1
+			next_index = next_index + 1
+		end
+	end
+	
+	for index = remain, total + 1 do
+		if self.items_by_index[index + 1] then
+			self:drop(self.items_by_index[index + 1].name)
+			self.items_by_index[index + 1] = nil
+		end
+	end
+
+	self.counter = remain
+end
+
+function debuffStorage:regenerate(index)
+	local texture, _, _ = UnitDebuff('player', index + 1)
+	local debuff = nil
+	
+	for idx = index + 1, 32 do
+		local item = self.items_by_index[idx]
+		if item then
+			if item.texture == texture then
+				self.items_by_index[idx] = nil
+				debuff = item
+				break
+			end
+		end
+	end
+	
+	if debuff then
+		local item = self.items_by_index[index + 1]
+		if item then
+			self:drop(item.name)
+		end
+
+		self.items_by_index[index + 1] = debuff
+	end
+
+	return debuff
+end
+
+function debuffStorage:try_update()
 	local has_update = false
-	while self.counter > 0 do
-		local item = self.items_by_index[index]
-		if not item then
+	local remain_count = 0
+	local total_count = self.counter
+
+	for index = 0, 31 do
+		local id, _ = GetPlayerBuff(index, "HARMFUL")
+		if id == -1 then
 			break
 		end
 
 		local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
 
-		if item.expiration == -1 then
-			item.expiration = expiration
-			break
-		elseif item.texture ~= texture then
-			local counter = self.counter
-			self:drop(item.name)
+		debuff = self:regenerate(index)
 
-			local prev_item = nil
-			for i=counter + 1,index,-1 do
-				local curr_item = self.items_by_index[i]
-				self.items_by_index[i] = prev_item
-				prev_item = curr_item
+		if debuff then
+			if debuff.expiration == -1 then
+				debuff.expiration = expiration
+			else
+				if debuff.expiration < expiration then
+					debuff.expiration = expiration				
+					has_update = true
+				end
 			end
-		else
-			if item.expiration < expiration then
-				item.expiration = expiration
-				has_update = true
-			end
-
-			break
 		end
+
+		remain_count = remain_count + 1
 	end
 
-	return has_update
-end
-
-function debuffStorage:try_update()
-	local has_update = false
-	local counter = 0
-	for index=0,31 do
-		local id, _ = GetPlayerBuff(index,"HARMFUL")
-		if id > -1 then
-			counter = counter + 1
-			has_update = self:has_update(index + 1, id) or has_update
-		end
-	end
-
-	for i=counter,self.counter do
-		if self.items_by_index[i + 1] ~= nil then
-			self:drop(self.items_by_index[i + 1].name)
-			self.items_by_index[i + 1] = nil
-		end
+	if remain_count < total_count then
+		self:zip(remain_count, total_count)
+		-- print('zip! '..remain_count..' <- '..total_count)
 	end
 
 	return has_update
@@ -161,7 +213,7 @@ end
 
 function debuffCombatRefresher:handle_tick(tick)
 	if self.next_tick > tick then
-		return
+		return false
 	end
 
 	self.next_tick = tick + self.step_tick
