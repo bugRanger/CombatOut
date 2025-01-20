@@ -30,6 +30,8 @@ debuffStorage.blacklist = {
 	-- Shaman
 	['Earthbind'] = true, 
 	['Earthbind Totem'] = true,
+	-- Paladin
+	['Forbearance'] = true, 
 	-- Battleground
 	['Speed'] = true,
 	['Restoration'] = true,
