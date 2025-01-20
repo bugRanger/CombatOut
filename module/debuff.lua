@@ -14,6 +14,8 @@ debuffStorage.items = {}
 debuffStorage.items_by_index = {}
 debuffStorage.counter = 0
 debuffStorage.blacklist = {
+	-- First aid effects
+	["Recently Bandaged"] = true,
 	-- Deviate Fish effects
 	["Party Time!"] = true,
 	["Sleepy"] = true,
