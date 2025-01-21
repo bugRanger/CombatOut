@@ -321,7 +321,7 @@ function refresh_aura_when_aura_from_blacklist_then_not_updated()
 	assert(not updated)
 end
 
-function refresh_aura_when_jitter_time_then_changed_timestamp()
+function refresh_aura_when_jitter_time_then_updated()
 	-- Arrange
 	fixture:reset()
 
@@ -476,7 +476,7 @@ refresh_aura_when_without_auras_then_updated()
 refresh_aura_when_duplicate_aura_then_updated()
 refresh_aura_when_with_blacklist_aura_then_updated()
 refresh_aura_when_aura_from_blacklist_then_not_updated()
-refresh_aura_when_jitter_time_then_changed_timestamp()
+refresh_aura_when_jitter_time_then_updated()
 
 finish_aura_when_without_auras_then_not_updated()
 finish_aura_when_duplicate_aura_first_then_not_updated()
