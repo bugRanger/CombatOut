@@ -61,11 +61,11 @@ function debuffStorage:push(name)
 	self.items[name] = item
 	self.items_by_index[self.counter] = item
 
-	debuffCombatRefresher:debug('add aura: '..name)
+	debuffWatcher:debug('add aura: '..name)
 end
 
 function debuffStorage:drop(name)
-	debuffCombatRefresher:debug('drop aura: '..name)
+	debuffWatcher:debug('drop aura: '..name)
 	local item = self.items[name]
 	if item then
 		if self.counter > 0 then
@@ -165,7 +165,7 @@ function debuffStorage:try_update()
 		local debuff = self:regenerate(index)
 
 		if debuff then
-			debuffCombatRefresher:debug('regenerate aura: '..index..' - '..debuff.name)
+			debuffWatcher:debug('regenerate aura: '..index..' - '..debuff.name)
 
 			if debuff.expiration == -1 then
 				debuff.expiration = expiration
@@ -174,12 +174,12 @@ function debuffStorage:try_update()
 					debuff.expiration = expiration
 					if debuff.has_tracked then
 						has_update = true
-						debuffCombatRefresher:debug('update aura: '..index..' - '..debuff.name)
+						debuffWatcher:debug('update aura: '..index..' - '..debuff.name)
 					end
 				end
 			end
 		else
-			debuffCombatRefresher:debug('regenerate aura: '..index..' - nil')
+			debuffWatcher:debug('regenerate aura: '..index..' - nil')
 		end
 
 		remain_count = remain_count + 1
@@ -187,31 +187,31 @@ function debuffStorage:try_update()
 
 	if remain_count < total_count then
 		self:zip(remain_count, total_count)
-		debuffCombatRefresher:debug('zip: '..remain_count..' <- '..total_count)
+		debuffWatcher:debug('zip: '..remain_count..' <- '..total_count)
 	end
 
 	return has_update
 end
 
-debuffCombatRefresher = debuffCombatRefresher or {}
-debuffCombatRefresher.step_tick = 0.04
-debuffCombatRefresher.next_tick = 0
-debuffCombatRefresher.logger = nil
+debuffWatcher = debuffWatcher or {}
+debuffWatcher.step_tick = 0.04
+debuffWatcher.next_tick = 0
+debuffWatcher.logger = nil
 
-function debuffCombatRefresher:reset()
+function debuffWatcher:reset()
 	self.step_tick = 0.04
 	self.next_tick = 0
 
 	debuffStorage:reset()
 end
 
-function debuffCombatRefresher:handle_event(arg1, arg2)
+function debuffWatcher:handle_event(arg1, arg2)
 	if arg1 == AURA_START_HARMFUL_EVENT then
 		debuffStorage:push(arg2)
 	end
 end
 
-function debuffCombatRefresher:handle_tick(tick)
+function debuffWatcher:handle_tick(tick)
 	if self.next_tick > tick then
 		return false
 	end
@@ -220,9 +220,9 @@ function debuffCombatRefresher:handle_tick(tick)
 	return debuffStorage:try_update()
 end
 
-function debuffCombatRefresher:debug(msg)
+function debuffWatcher:debug(msg)
 	if not self.logger then return end
 	self.logger:debug(msg)
 end
 
-return debuffCombatRefresher
+return debuffWatcher

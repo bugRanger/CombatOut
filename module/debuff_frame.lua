@@ -5,10 +5,10 @@ frame:SetScript("OnEvent", function()
 		return
 	end
 
-	debuffCombatRefresher:handle_event(arg1, arg2)
+	debuffWatcher:handle_event(arg1, arg2)
 end)
 frame:SetScript("OnUpdate", function()
-	if debuffCombatRefresher:handle_tick(GetTime()) then
+	if debuffWatcher:handle_tick(GetTime()) then
 		CombatOut:OnCombatRefresh()
 	end
 end)
