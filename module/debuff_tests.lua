@@ -4,11 +4,6 @@
 local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
 local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 
-DEFAULT_CHAT_FRAME = DEFAULT_CHAT_FRAME or {}
-function DEFAULT_CHAT_FRAME:AddMessage(msg)
-	print(msg)
-end
-
 -- ============================================
 -- Fixture for tests
 -- ============================================
