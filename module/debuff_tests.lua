@@ -4,24 +4,9 @@
 local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
 local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 
-function UnitDebuff(unit, index)
-  -- Texture, Stack, Type
-  return nil, nil, nil
-end
-
-function GetPlayerBuff(index, filter)
-  -- id, cancelling
-  return nil, nil
-end
-
-function GetPlayerBuffTimeLeft(id)
-  -- timeleft
-  return nil
-end
-
-function GetTime()
-  -- time in inner ticks
-  return nil
+DEFAULT_CHAT_FRAME = DEFAULT_CHAT_FRAME or {}
+function DEFAULT_CHAT_FRAME:AddMessage(msg)
+	print(msg)
 end
 
 -- ============================================
@@ -31,14 +16,21 @@ local AURA_INDEX_STEP = 1
 
 local test_data = test_data or require("debuff")
 
+local silenceMode = true
+local logger = logger or {}
+function logger:debug(msg)
+	if silenceMode then return end
+	print(msg)
+end
+
 local fixture = fixture or {}
 fixture.aura = {}
 fixture.aura_index = {}
 fixture.aura_count = 0
 fixture.time = 0
 fixture.time_step = 0
-fixture.raise_event = nil
-fixture.raise_tick = nil
+fixture.event_handler = nil
+fixture.tick_handler = nil
 
 function fixture:reset()
 	self.aura = {}
@@ -61,11 +53,12 @@ function fixture:start_aura(uid, name, kind, texture, duration)
 	self.aura[uid] = aura
 	self.aura_index[aura.index] = aura
 
-	self.raise_event(AURA_START_HARMFUL_EVENT, name)
+	local result = self.event_handler(AURA_START_HARMFUL_EVENT, name)
 
-	aura.duration = duration
 	aura.start = self.time
+	aura.duration = duration
 
+	return result
 end
 
 function fixture:refresh_aura(uid, duration)
@@ -78,7 +71,7 @@ end
 function fixture:finish_aura(uid)
 	local aura = self.aura[uid]
 	if aura then
-		self.raise_event(AURA_END_HARMFUL_EVENT, aura.name)
+		self.event_handler(AURA_END_HARMFUL_EVENT, aura.name)
 	end
 
 	local prev_aura = nil
@@ -99,15 +92,16 @@ function fixture:finish_aura(uid)
 	self.aura[uid] = nil
 end
 
-function fixture:advance_time(interval)
+function fixture:raise_tick(interval)
 	self.time = self.time + (interval or self.time_step)
-	self.raise_tick(self.time)
+	return self.tick_handler(self.time)
 end
 
 function fixture:set_behavior()
+	test_data.logger = logger
 	self.time_step = test_data.step_tick
-	self.raise_event = function(arg1, arg2) test_data.handle_event(test_data, arg1, arg2) end
-	self.raise_tick = function(arg1) test_data.handle_tick(test_data, arg1) end
+	self.event_handler = function(arg1, arg2) return test_data.handle_event(test_data, arg1, arg2) end
+	self.tick_handler = function(arg1) return test_data.handle_tick(test_data, arg1) end
 end
 
 function fixture:set_hooks()
@@ -158,7 +152,7 @@ end
 
 function __FUNC__() return debug.getinfo(3, 'n').name end
 
-function fixture.assert(value)
+function assert(value)
 	if value then
 		print('OK - '..__FUNC__())
 	else
@@ -167,7 +161,7 @@ function fixture.assert(value)
 	end
 end
 
-function fixture.assert_eq(left, right)
+function assert_eq(left, right)
 	if left == right then
 		print('OK - '..__FUNC__())
 	else
@@ -184,236 +178,147 @@ fixture:set_behavior()
 fixture:set_hooks()
 
 -- start aura
-function start_aura_when_out_combat_then_in_combat()
+function start_aura_when_without_auras_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	-- Act
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(test_data.in_combat)
+	assert(not updated)
 end
 
-function start_aura_when_out_combat_then_changed_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-
-	-- Act
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function start_aura_when_in_combat_then_in_combat()
-	-- Arrange
-	fixture:reset()
-
-	test_data.in_combat = true
-
-	-- Act
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(test_data.in_combat)
-end
-
-function start_aura_when_in_combat_then_changed_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	test_data.in_combat = true
-
-	-- Act
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function start_aura_when_duplicate_aura_then_in_combat()
+function start_aura_when_duplicate_aura_then_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
 
 	-- Act
 	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(test_data.in_combat)
+	assert(updated)
 end
 
-function start_aura_when_duplicate_aura_then_changed_timestamp()
+function start_aura_when_duplicate_aura_with_blacklist_aura_then_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
+
+	fixture:start_aura(2, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
+	fixture:raise_tick()
 
 	-- Act
-	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:start_aura(3, "Death", "magic", "TEXTURE\\DEAD", 20)
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert_eq(test_data.timestamp, fixture.time)
+	assert(updated)
 end
 
-function start_aura_when_non_combat_aura_then_out_combat()
+function start_aura_when_aura_from_blacklist_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
-	-- Act
-	fixture:start_aura(1, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
-	fixture:start_aura(2, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
-	fixture:start_aura(3, "Detect Magic", "magic", "TEXTURE\\DETECT_MAGIC", 20)
-	fixture:start_aura(4, "Speed", "none", "TEXTURE\\SPEED", 20)
-	fixture:start_aura(5, "Restoration", "none", "TEXTURE\\RESTORATION", 20)
-	fixture:start_aura(6, "Berserking", "none", "TEXTURE\\BERSERKING", 20)
-	fixture:start_aura(7, "Hunter's Mark", "none", "TEXTURE\\HUNTER_MARK", 20)
-	fixture:start_aura(8, "Fleeing", "none", "TEXTURE\\FLEEING", 20)
-	fixture:start_aura(9, "Blood Fury", "none", "TEXTURE\\BLOOD_FURY", 20)
-	
-	fixture:start_aura(10, "Party Time!", "magic", "TEXTURE\\PARTY_TIME", 20)
-	fixture:start_aura(11, "Sleepy", "magic", "TEXTURE\\SLEEPY", 20)
-	fixture:start_aura(12, "Shrink", "curse", "TEXTURE\\SHRINK", 20)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(not test_data.in_combat)
-end
-
-function start_aura_when_non_combat_aura_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:raise_tick()
 
 	-- Act
-	fixture:start_aura(1, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
-	fixture:start_aura(2, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
-	fixture:start_aura(3, "Detect Magic", "magic", "TEXTURE\\DETECT_MAGIC", 20)
-	fixture:start_aura(4, "Speed", "none", "TEXTURE\\SPEED", 20)
-	fixture:start_aura(5, "Restoration", "none", "TEXTURE\\RESTORATION", 20)
-	fixture:start_aura(6, "Berserking", "none", "TEXTURE\\BERSERKING", 20)
-	fixture:start_aura(7, "Hunter's Mark", "none", "TEXTURE\\HUNTER_MARK", 20)
-	fixture:start_aura(8, "Fleeing", "none", "TEXTURE\\FLEEING", 20)
-	fixture:start_aura(9, "Blood Fury", "none", "TEXTURE\\BLOOD_FURY", 20)
-	
-	fixture:start_aura(10, "Party Time!", "magic", "TEXTURE\\PARTY_TIME", 20)
-	fixture:start_aura(11, "Sleepy", "magic", "TEXTURE\\SLEEPY", 20)
-	fixture:start_aura(12, "Shrink", "curse", "TEXTURE\\SHRINK", 20)
-	fixture:advance_time()
+	fixture:start_aura(2, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
+	fixture:start_aura(3, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
+	fixture:start_aura(4, "Detect Magic", "magic", "TEXTURE\\DETECT_MAGIC", 20)
+	fixture:start_aura(5, "Speed", "none", "TEXTURE\\SPEED", 20)
+	fixture:start_aura(6, "Restoration", "none", "TEXTURE\\RESTORATION", 20)
+	fixture:start_aura(7, "Berserking", "none", "TEXTURE\\BERSERKING", 20)
+	fixture:start_aura(8, "Hunter's Mark", "none", "TEXTURE\\HUNTER_MARK", 20)
+	fixture:start_aura(9, "Fleeing", "none", "TEXTURE\\FLEEING", 20)
+
+	fixture:start_aura(10, "Blood Fury", "none", "TEXTURE\\BLOOD_FURY", 20)	
+	fixture:start_aura(11, "Party Time!", "magic", "TEXTURE\\PARTY_TIME", 20)
+	fixture:start_aura(12, "Sleepy", "magic", "TEXTURE\\SLEEPY", 20)
+	fixture:start_aura(13, "Shrink", "curse", "TEXTURE\\SHRINK", 20)
+	fixture:start_aura(14, "Recently Bandaged", "none", "TEXTURE\\RECENTLY_BANDAGED", 20)
+	fixture:start_aura(15, "Forbearance", "none", "TEXTURE\\FORBEARANCE", 20)
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert_eq(test_data.timestamp, 0)
+	assert(not updated)
 end
 
 -- refresh aura
-function refresh_aura_when_in_combat_then_in_combat()
+function refresh_aura_when_without_auras_then_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
 
 	-- Act
 	fixture:refresh_aura(1)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(test_data.in_combat)
+	assert(updated)
 end
 
-function refresh_aura_when_in_combat_then_changed_timestamp()
+function refresh_aura_when_duplicate_aura_then_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	-- Act
-	fixture:refresh_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, fixture.time)
-end
-
-function refresh_aura_when_out_combat_then_in_combat()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:refresh_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(test_data.in_combat)
-end
-
-function refresh_aura_when_out_combat_then_changed_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:refresh_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, fixture.time)
-end
-
-function refresh_aura_when_duplicate_aura_then_in_combat()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
 	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
+
+	-- Act
+	fixture:refresh_aura(1)
+	local updated = fixture:raise_tick()
+
+	-- Assert
+	assert(updated)
+end
+
+function refresh_aura_when_with_blacklist_aura_then_updated()
+	-- Arrange
+	fixture:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:raise_tick()
+
+	fixture:start_aura(2, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
+	fixture:raise_tick()
+
+	-- Act
+	fixture:refresh_aura(1)
+	local updated = fixture:raise_tick()
+
+	-- Assert
+	assert(updated)
+end
+
+function refresh_aura_when_aura_from_blacklist_then_not_updated()
+	-- Arrange
+	fixture:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:raise_tick()
+
+	fixture:start_aura(2, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
+	fixture:raise_tick()
 
 	-- Act
 	fixture:refresh_aura(2)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(test_data.in_combat)
-end
-
-function refresh_aura_when_duplicate_aura_then_changed_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	-- Act
-	fixture:refresh_aura(2)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, fixture.time)
+	assert(not updated)
 end
 
 function refresh_aura_when_jitter_time_then_changed_timestamp()
@@ -421,423 +326,163 @@ function refresh_aura_when_jitter_time_then_changed_timestamp()
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
 
 	-- Act
 	fixture:refresh_aura(1, 19.9)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert_eq(test_data.timestamp, fixture.time)
+	assert(updated)
 end
 
 -- finish aura
-function finish_aura_when_in_combat_then_in_combat()
+function finish_aura_when_without_auras_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(1)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(test_data.in_combat)
+	assert(not updated)
 end
 
-function finish_aura_when_in_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function finish_aura_when_out_combat_then_out_combat()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:finish_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(not test_data.in_combat)
-end
-
-function finish_aura_when_out_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:finish_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function finish_aura_when_duplicate_aura_then_out_combat()
+function finish_aura_when_duplicate_aura_first_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(1)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(not test_data.in_combat)
+	assert(not updated)
 end
 
-function finish_aura_when_duplicate_aura_with_long_time_then_out_combat()
+function finish_aura_when_duplicate_aura_second_then_not_updated()
+	-- Arrange
+	fixture:reset()
+
+	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
+	fixture:raise_tick()
+
+	-- Act
+	fixture:finish_aura(2)
+	local updated = fixture:raise_tick()
+
+	-- Assert
+	assert(not updated)
+end
+
+function finish_aura_when_duplicate_aura_with_long_time_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 10)
 	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(2)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(not test_data.in_combat)
+	assert(not updated)
 end
 
-function finish_aura_when_duplicate_aura_with_short_time_then_out_combat()
+function finish_aura_when_duplicate_aura_with_short_time_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 10)
-	fixture:advance_time()
 	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	test_data.in_combat = false
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(1)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(not test_data.in_combat)
+	assert(not updated)
 end
 
-function finish_aura_when_duplicate_aura_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-	fixture:start_aura(2, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:advance_time()
-
-	local expected = fixture.time
-	test_data.in_combat = false
-
-	-- Act
-	fixture:finish_aura(2)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
--- remove first/mid/last aura
-function remove_first_aura_when_out_combat_then_out_combat()
+function finish_aura_when_first_aura_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
 	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	test_data.in_combat = false
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(1)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(not test_data.in_combat)
+	assert(not updated)
 end
 
-function remove_first_aura_when_out_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:finish_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function remove_first_aura_when_in_combat_then_in_combat()
+function finish_aura_when_second_aura_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
 	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(test_data.in_combat)
-end
-
-function remove_first_aura_when_in_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(1)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-
-function remove_mid_aura_when_out_combat_then_out_combat()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	test_data.in_combat = false
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(2)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(not test_data.in_combat)
+	assert(not updated)
 end
 
-function remove_mid_aura_when_out_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:finish_aura(2)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function remove_mid_aura_when_in_combat_then_in_combat()
+function finish_aura_when_last_aura_then_not_updated()
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
 	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(2)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(test_data.in_combat)
-end
-
-function remove_mid_aura_when_in_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(2)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-
-function remove_last_aura_when_out_combat_then_out_combat()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	test_data.in_combat = false
+	fixture:raise_tick()
 
 	-- Act
 	fixture:finish_aura(3)
-	fixture:advance_time()
+	local updated = fixture:raise_tick()
 
 	-- Assert
-	fixture.assert(not test_data.in_combat)
+	assert(not updated)
 end
 
-function remove_last_aura_when_out_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
+start_aura_when_without_auras_then_not_updated()
+start_aura_when_duplicate_aura_then_updated()
+start_aura_when_duplicate_aura_with_blacklist_aura_then_updated()
+start_aura_when_aura_from_blacklist_then_not_updated()
 
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	test_data.in_combat = false
-
-	-- Act
-	fixture:finish_aura(3)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-function remove_last_aura_when_in_combat_then_in_combat()
-	-- Arrange
-	fixture:reset()
-
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(3)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert(test_data.in_combat)
-end
-
-function remove_last_aura_when_in_combat_then_unchanged_timestamp()
-	-- Arrange
-	fixture:reset()
-
-	local expected = fixture.time
-	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
-	fixture:start_aura(2, "Toxic", "poison", "TEXTURE\\Toxic", 25)
-	fixture:start_aura(3, "Poison", "poison", "TEXTURE\\Poison", 30)
-	fixture:advance_time()
-
-	-- Act
-	fixture:finish_aura(3)
-	fixture:advance_time()
-
-	-- Assert
-	fixture.assert_eq(test_data.timestamp, expected)
-end
-
-start_aura_when_out_combat_then_in_combat()
-start_aura_when_out_combat_then_changed_timestamp()
-start_aura_when_in_combat_then_in_combat()
-start_aura_when_in_combat_then_changed_timestamp()
-start_aura_when_non_combat_aura_then_out_combat()
-start_aura_when_non_combat_aura_then_unchanged_timestamp()
-
-refresh_aura_when_out_combat_then_in_combat()
-refresh_aura_when_out_combat_then_changed_timestamp()
-refresh_aura_when_in_combat_then_in_combat()
-refresh_aura_when_in_combat_then_changed_timestamp()
+refresh_aura_when_without_auras_then_updated()
+refresh_aura_when_duplicate_aura_then_updated()
+refresh_aura_when_with_blacklist_aura_then_updated()
+refresh_aura_when_aura_from_blacklist_then_not_updated()
 refresh_aura_when_jitter_time_then_changed_timestamp()
 
-finish_aura_when_duplicate_aura_then_out_combat()
-finish_aura_when_duplicate_aura_with_long_time_then_out_combat()
-finish_aura_when_duplicate_aura_with_short_time_then_out_combat()
-finish_aura_when_out_combat_then_out_combat()
-finish_aura_when_out_combat_then_unchanged_timestamp()
-finish_aura_when_in_combat_then_in_combat()
-finish_aura_when_in_combat_then_unchanged_timestamp()
-
-remove_first_aura_when_out_combat_then_out_combat()
-remove_first_aura_when_out_combat_then_unchanged_timestamp()
-remove_mid_aura_when_out_combat_then_out_combat()
-remove_mid_aura_when_out_combat_then_unchanged_timestamp()
-remove_last_aura_when_out_combat_then_out_combat()
-remove_last_aura_when_out_combat_then_unchanged_timestamp()
-
-remove_first_aura_when_in_combat_then_in_combat()
-remove_first_aura_when_in_combat_then_unchanged_timestamp()
-remove_mid_aura_when_in_combat_then_in_combat()
-remove_mid_aura_when_in_combat_then_unchanged_timestamp()
-remove_last_aura_when_in_combat_then_in_combat()
-remove_last_aura_when_in_combat_then_unchanged_timestamp()
-
-start_aura_when_duplicate_aura_then_in_combat()
-start_aura_when_duplicate_aura_then_changed_timestamp()
-
-refresh_aura_when_duplicate_aura_then_in_combat()
-refresh_aura_when_duplicate_aura_then_changed_timestamp()
-
-finish_aura_when_duplicate_aura_then_out_combat()
-finish_aura_when_duplicate_aura_then_unchanged_timestamp()
+finish_aura_when_without_auras_then_not_updated()
+finish_aura_when_duplicate_aura_first_then_not_updated()
+finish_aura_when_duplicate_aura_second_then_not_updated()
+finish_aura_when_duplicate_aura_with_long_time_then_not_updated()
+finish_aura_when_duplicate_aura_with_short_time_then_not_updated()
+finish_aura_when_first_aura_then_not_updated()
+finish_aura_when_second_aura_then_not_updated()
+finish_aura_when_last_aura_then_not_updated()

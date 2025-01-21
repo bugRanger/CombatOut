@@ -7,7 +7,6 @@
 -- 2024 (c) Rugly
 -- ============================================
 local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
-local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 
 local debuffStorage = debuffStorage or {}
 debuffStorage.items = {}
@@ -44,11 +43,7 @@ function debuffStorage:reset()
 	self.counter = 0
 end
 
-function debuffStorage:try_push(name)
-	if self.blacklist[name] then
-		return false
-	end
-
+function debuffStorage:push(name)
 	self.counter = self.counter + 1
 	local texture, _, _ = UnitDebuff('player', self.counter)
 	local item = self.items[name] or {}
@@ -56,16 +51,21 @@ function debuffStorage:try_push(name)
 	item.expiration = item.expiration or -1
 	item.texture = item.texture or texture
 	item.counter = (item.counter or 0) + 1
+	
+	if self.blacklist[name] then
+		item.has_tracked = false
+	else
+		item.has_tracked = true
+	end
 
 	self.items[name] = item
 	self.items_by_index[self.counter] = item
 
-	-- print('add aura: '..name)
-	return true
+	debuffCombatRefresher:debug('add aura: '..name)
 end
 
 function debuffStorage:drop(name)
-	-- print('drop aura: '..name)
+	debuffCombatRefresher:debug('drop aura: '..name)
 	local item = self.items[name]
 	if item then
 		if self.counter > 0 then
@@ -162,17 +162,24 @@ function debuffStorage:try_update()
 
 		local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
 
-		debuff = self:regenerate(index)
+		local debuff = self:regenerate(index)
 
 		if debuff then
+			debuffCombatRefresher:debug('regenerate aura: '..index..' - '..debuff.name)
+
 			if debuff.expiration == -1 then
 				debuff.expiration = expiration
 			else
 				if debuff.expiration < expiration then
-					debuff.expiration = expiration				
-					has_update = true
+					debuff.expiration = expiration
+					if debuff.has_tracked then
+						has_update = true
+						debuffCombatRefresher:debug('update aura: '..index..' - '..debuff.name)
+					end
 				end
 			end
+		else
+			debuffCombatRefresher:debug('regenerate aura: '..index..' - nil')
 		end
 
 		remain_count = remain_count + 1
@@ -180,21 +187,18 @@ function debuffStorage:try_update()
 
 	if remain_count < total_count then
 		self:zip(remain_count, total_count)
-		-- print('zip! '..remain_count..' <- '..total_count)
+		debuffCombatRefresher:debug('zip: '..remain_count..' <- '..total_count)
 	end
 
 	return has_update
 end
 
 debuffCombatRefresher = debuffCombatRefresher or {}
-debuffCombatRefresher.in_combat = false
-debuffCombatRefresher.timestamp = 0
 debuffCombatRefresher.step_tick = 0.04
 debuffCombatRefresher.next_tick = 0
+debuffCombatRefresher.logger = nil
 
 function debuffCombatRefresher:reset()
-	self.in_combat = false
-	self.timestamp = 0
 	self.step_tick = 0.04
 	self.next_tick = 0
 
@@ -203,11 +207,7 @@ end
 
 function debuffCombatRefresher:handle_event(arg1, arg2)
 	if arg1 == AURA_START_HARMFUL_EVENT then
-		if debuffStorage:try_push(arg2)then
-			self:refresh_combat()
-		end
-	elseif arg1 == AURA_END_HARMFUL_EVENT then
-		return
+		debuffStorage:push(arg2)
 	end
 end
 
@@ -217,17 +217,12 @@ function debuffCombatRefresher:handle_tick(tick)
 	end
 
 	self.next_tick = tick + self.step_tick
-	if debuffStorage:try_update() then
-		self:refresh_combat()
-		return true
-	end
-
-	return false
+	return debuffStorage:try_update()
 end
 
-function debuffCombatRefresher:refresh_combat()
-	self.in_combat = true
-	self.timestamp = GetTime()
+function debuffCombatRefresher:debug(msg)
+	if not self.logger then return end
+	self.logger:debug(msg)
 end
 
 return debuffCombatRefresher
