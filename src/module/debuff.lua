@@ -6,8 +6,6 @@
 -- 
 -- 2024 (c) Rugly
 -- ============================================
-local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
-
 local debuffStorage = debuffStorage or {}
 debuffStorage.items = {}
 debuffStorage.items_by_index = {}
@@ -205,8 +203,16 @@ function debuffWatcher:reset()
 	debuffStorage:reset()
 end
 
-function debuffWatcher:handle_event(arg1, arg2)
-	if arg1 == AURA_START_HARMFUL_EVENT then
+function debuffWatcher:subscribe(frame)
+	frame:RegisterEvent('COMBAT_TEXT_UPDATE')
+end 
+
+function debuffWatcher:handle_event(event, arg1, arg2)
+	if event ~= 'COMBAT_TEXT_UPDATE' then
+		return
+	end
+
+	if arg1 == 'AURA_START_HARMFUL' then
 		debuffStorage:push(arg2)
 	end
 end

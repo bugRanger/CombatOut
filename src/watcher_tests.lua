@@ -1,6 +1,7 @@
 -- ============================================
 -- This is API WOW 1.12
 -- ============================================
+local COMBAT_TEXT_UPDATE = 'COMBAT_TEXT_UPDATE'
 local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
 local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 
@@ -9,7 +10,9 @@ local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
 -- ============================================
 local AURA_INDEX_STEP = 1
 
-local test_data = test_data or require("debuff")
+debuffWatcher = debuffWatcher or require("module.debuff")
+
+local test_data = test_data or require("watcher")
 
 local silenceMode = true
 local logger = logger or {}
@@ -23,9 +26,7 @@ fixture.aura = {}
 fixture.aura_index = {}
 fixture.aura_count = 0
 fixture.time = 0
-fixture.time_step = 0
-fixture.event_handler = nil
-fixture.tick_handler = nil
+fixture.time_step = 0.04
 
 function fixture:reset()
 	self.aura = {}
@@ -33,7 +34,8 @@ function fixture:reset()
 	self.aura_uids = {}
 	self.aura_count = 0
 	self.time = 0
-
+	
+	test_data:set_logger(logger)
 	test_data:reset()
 end
 
@@ -48,7 +50,7 @@ function fixture:start_aura(uid, name, kind, texture, duration)
 	self.aura[uid] = aura
 	self.aura_index[aura.index] = aura
 
-	local result = self.event_handler(AURA_START_HARMFUL_EVENT, name)
+	local result = test_data:handle_event(COMBAT_TEXT_UPDATE, AURA_START_HARMFUL_EVENT, name)
 
 	aura.start = self.time
 	aura.duration = duration
@@ -66,7 +68,7 @@ end
 function fixture:finish_aura(uid)
 	local aura = self.aura[uid]
 	if aura then
-		self.event_handler(AURA_END_HARMFUL_EVENT, aura.name)
+		test_data:handle_event(COMBAT_TEXT_UPDATE, AURA_END_HARMFUL_EVENT, aura.name)
 	end
 
 	local prev_aura = nil
@@ -88,15 +90,9 @@ function fixture:finish_aura(uid)
 end
 
 function fixture:raise_tick(interval)
-	self.time = self.time + (interval or self.time_step)
-	return self.tick_handler(self.time)
-end
-
-function fixture:set_behavior()
-	test_data.logger = logger
-	self.time_step = test_data.step_tick
-	self.event_handler = function(arg1, arg2) return test_data.handle_event(test_data, arg1, arg2) end
-	self.tick_handler = function(arg1) return test_data.handle_tick(test_data, arg1) end
+	local delta = (interval or self.time_step)
+	self.time = self.time + delta
+	return test_data:handle_tick(self.time, delta)
 end
 
 function fixture:set_hooks()
@@ -169,7 +165,6 @@ end
 -- Test cases
 -- ============================================
 
-fixture:set_behavior()
 fixture:set_hooks()
 
 -- start aura

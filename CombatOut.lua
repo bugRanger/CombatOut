@@ -3,26 +3,9 @@ local ShortName = "CO"
 local SlashCommandFull = "/combatout"
 local SlashCommandShort = "/co"
 
-local Parameters = {}
-Parameters.debugMode = false
-Parameters.event_types = {
-	["AURA_START_HARMFUL"] = true, 
-	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
-	["SPELL_RESISTED"] = true, 
-	["SPELL_MISSED"] = true, --someone missed, resisted, absorbed, etc. damage by caster
-	["SPELL_HEAL"] = true, --someone got healed by caster
-	["SPELL_CAST_SUCCESS"] = true, --some got affected by instant spell like Counterspell
-	["SPELL_AURA_APPLIED"] = true, --someone got buffed/debuffed by caster
-	["SPELL_AURA_DISPELLED"] = true, --someones buff/debuff got dispelled by caster
-	["SPELL_AURA_STOLEN"] = true, --someones buff got stolen by caster
-	["SPELL_DISPEL_FAILED"] = true, --caster failed to dispel buff/debuff
-	["SPELL_PERIODIC_DISPEL_FAILED"] = true, --caster failed to dispel dot/hot
+local Parameters = {
+	debugMode = false,
 }
-
-local CombatState = {}
-CombatState.latency = 0
-CombatState.duration = 0
-CombatState.finish_at = 0
 
 local defaults = {
 	x = 0,
@@ -50,12 +33,12 @@ local settings = {
 	colorB = "Bar color B",
 }
 
-local debug = function (msg)
+local logger = logger or {}
+function logger:debug(msg)
 	if not Parameters.debugMode then return end
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("%s debug '%s'", ShortName, msg))
 end
-
-local print = function (msg)
+function logger:info(msg)
 	DEFAULT_CHAT_FRAME:AddMessage(msg)
 end
 
@@ -72,33 +55,6 @@ local split = function (s,t)
 	l.n = l.n + 1
 	l[l.n] = string.gsub(s,"(%s%s*)$","")
 	return l
-end
-
-CombatOut = CombatOut or {}
-
-function CombatOut:Debug(msg)
-	debug(msg)
-end
-
-function CombatOut:OnCombatIn()
-	CombatState.duration = 6
-	CombatState.finish_at = GetTime() + CombatState.duration
-	debug("handle event - in combat")
-end
-
-function CombatOut:OnCombatRefresh(latency)
-	latency = latency or 0
-	CombatState.duration = 6 + latency
-	CombatState.finish_at = GetTime() + CombatState.duration
-	debug("handle event - refresh combat")
-end
-
-function CombatOut:OnCombatOut()
-	local latency = math.floor((GetTime() - CombatState.finish_at) * 1000)
-	CombatState.finish_at = 0
-	CombatState.duration = 0
-	CombatState.latency = latency
-	debug(string.format("handle event - out combat (latency:%s ms)", latency))
 end
 
 local function UpdateSettings()
@@ -132,12 +88,12 @@ local function UpdateAppearance()
 	CombatOut_Frame:SetScale(CombatOut_Settings["s"])
 end
 
-local function UpdateDisplay()
-	if (CombatState.duration <= 0) then
+local function UpdateDisplay(duration)
+	if (duration <= 0) then
 		CombatOut_FrameTime:Hide()
 		CombatOut_Frame:Hide()
 	else
-		local width = (CombatState.duration / 6 ) * CombatOut_Settings["w"]
+		local width = (duration / 6 ) * CombatOut_Settings["w"]
 		if width > 0 then
 			CombatOut_FrameTime:SetVertexColor(CombatOut_Settings["colorR"], CombatOut_Settings["colorG"], CombatOut_Settings["colorB"])
 			CombatOut_FrameTime:SetWidth(width)
@@ -148,14 +104,14 @@ local function UpdateDisplay()
 		CombatOut_FrameShadowTime:SetWidth(width)
 		CombatOut_FrameShadowTime:Show()
 
-		CombatOut_FrameText:SetText(string.sub(CombatState.duration, 1, 3))
+		CombatOut_FrameText:SetText(string.sub(duration, 1, 3))
 		CombatOut_Frame:SetAlpha(CombatOut_Settings["a"])
 	end
 end
 
 local function OnChatCommand(msg)
 	msg = msg or ""
-	debug(string.format("handle command - '%s'", msg))
+	logger:debug(string.format("handle command - '%s'", msg))
 
 	local vars = split(msg, " ")
 	for k,v in vars do
@@ -167,16 +123,16 @@ local function OnChatCommand(msg)
 	local cmd, arg = vars[1], vars[2]
 
 	if cmd == "test" then
-		CombatOut:OnCombatIn()
+		combatWatcher:OnCombatIn()
 		CombatOut_Frame:Show()
 	elseif cmd == "debug" then
 		Parameters.debugMode = not Parameters.debugMode
-		print(string.format("toggle debug mode: %s", tostring(Parameters.debugMode)))
+		logger:info(string.format("toggle debug mode: %s", tostring(Parameters.debugMode)))
 	elseif cmd == "reset" then
 		CombatOut_Settings = nil
 		UpdateSettings()
 		UpdateAppearance()
-		print("Reset to defaults.")
+		logger:info("Reset to defaults.")
 	elseif settings[cmd] ~= nil then
 		if arg ~= nil then
 			if arg == "on" then arg = 1 end
@@ -186,97 +142,48 @@ local function OnChatCommand(msg)
 				CombatOut_Settings[cmd] = number
 				UpdateAppearance()
 			else
-				print("Error: Invalid argument")
+				logger:info("Error: Invalid argument")
 			end
 		end
-		print(format("%s %s %s (%s)",
+		logger:info(format("%s %s %s (%s)",
 			SlashCommandShort, cmd, CombatOut_Settings[cmd], settings[cmd]))
 	else
 		for k, v in settings do
-			print(format("%s %s %s (%s)",
+			logger:info(format("%s %s %s (%s)",
 				SlashCommandShort, k, CombatOut_Settings[k], v))
 		end
 	end
 end
 
 function CombatOut_OnLoad()
-	debug("begin: Register events")
+	logger:debug("begin: Register events")
 	CombatOut_Frame:RegisterEvent('ADDON_LOADED')
-	CombatOut_Frame:RegisterEvent('PLAYER_REGEN_ENABLED')
-	CombatOut_Frame:RegisterEvent('PLAYER_REGEN_DISABLED')
-
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_HITS')
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_SELF_MISSES') -- MISS and BLOCK, PARRY, DODGE
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_SELF_DAMAGE')
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF')
-
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_HITS')
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES') -- MISS and BLOCK, PARRY, DODGE
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS')
-	CombatOut_Frame:RegisterEvent('CHAT_MSG_COMBAT_HOSTILEPLAYER_MISSES') -- MISS and BLOCK, PARRY, DODGE
-
-	-- Handle spell cast Sunder etc
-	-- CombatOut_Frame:RegisterEvent('SPELLCAST_STOP')
-
-	CombatOut_Frame:RegisterEvent('COMBAT_TEXT_UPDATE')
-	debug("end: register events")
+	combatWatcher:set_logger(logger)
+	combatWatcher:subscribe(CombatOut_Frame)
+	logger:debug("end: Register events")
 end
 
 function CombatOut_OnEvent()
-	debug(string.format("handle event - %s (%s %s)", tostring(event), tostring(arg1), tostring(arg2)))
+	logger:debug(string.format("handle event - %s (%s %s)", tostring(event), tostring(arg1), tostring(arg2)))
 
 	if event == 'ADDON_LOADED' then
 		if (string.upper(arg1) == string.upper(Name)) then
 			UpdateSettings()
 			UpdateAppearance()
-			UpdateDisplay()
 		end
 
 		return
 	end
 
-	if event == 'PLAYER_REGEN_ENABLED' then
-		CombatOut:OnCombatOut()
-		return
-	end
-
-	if event == 'PLAYER_REGEN_DISABLED' then
-		CombatOut:OnCombatIn()
+	if combatWatcher:handle_event(event, arg1, arg2) == true then
 		CombatOut_Frame:Show()
 		return
 	end
-
-	if event == 'CHAT_MSG_SPELL_SELF_DAMAGE' then
-		if string.find(arg1, "^Your Taunt") ~= nil or
-		   string.find(arg1, "^Your Growl") ~= nil then
-			return
-		end
-	end
-
-	if event == 'CHAT_MSG_COMBAT_SELF_HITS' then
-		if string.find(arg1, "^You fall and lose %d+ health.$") ~= nil then
-			return
-		end
-	end
-
-	if event == 'COMBAT_TEXT_UPDATE' then
-		if not Parameters.event_types[arg1] then
-			return
-		end
-	end
-
-	CombatOut:OnCombatRefresh()
 end
 
 function CombatOut_OnUpdate(delta)
-	if (CombatState.duration > 0) then
-		CombatState.duration = CombatState.duration - delta
-		if (CombatState.duration < 0) then
-			CombatState.duration = 0
-		end
-	end
-
-	UpdateDisplay()
+	combatWatcher:handle_tick(GetTime(), delta)
+	UpdateDisplay(combatWatcher.state.duration)
 end
 
 SLASH_COMBATOUT1 = SlashCommandFull
