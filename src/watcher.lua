@@ -7,6 +7,12 @@ combatWatcher = combatWatcher or {
     },
 }
 
+COMBAT_ACTION_IGNORE = 0
+COMBAT_ACTION_START = 1
+COMBAT_ACTION_FINISH = 2
+COMBAT_ACTION_UPDATE = 3
+
+
 local CombatTextUpdateEventTypes = {
 	["AURA_START_HARMFUL"] = true, 
 	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
@@ -93,35 +99,35 @@ function combatWatcher:handle_event(event, arg1, arg2)
 
 	if event == 'PLAYER_REGEN_DISABLED' then
 		combatWatcher:OnCombatIn()
-		return true
+		return COMBAT_ACTION_START
 	end
 
 	if event == 'PLAYER_REGEN_ENABLED' then
 		combatWatcher:OnCombatOut()
-		return false
+		return COMBAT_ACTION_FINISH
 	end
 
 	if event == 'CHAT_MSG_SPELL_SELF_DAMAGE' then
 		if string.find(arg1, "^Your Taunt") ~= nil or
 		   string.find(arg1, "^Your Growl") ~= nil then
-			return nil
+			return COMBAT_ACTION_IGNORE
 		end
 	end
 
 	if event == 'CHAT_MSG_COMBAT_SELF_HITS' then
 		if string.find(arg1, "^You fall and lose %d+ health.$") ~= nil then
-			return nil
+			return COMBAT_ACTION_IGNORE
 		end
 	end
 
 	if event == 'COMBAT_TEXT_UPDATE' then
 		if not CombatTextUpdateEventTypes[arg1] then
-			return nil
+			return COMBAT_ACTION_IGNORE
 		end
 	end
 
 	combatWatcher:OnCombatRefresh()
-	return nil
+	return COMBAT_ACTION_UPDATE
 end
 
 function combatWatcher:handle_tick(tick, delta)
