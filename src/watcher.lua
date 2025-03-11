@@ -38,10 +38,10 @@ function combatWatcher:OnCombatIn()
 	combatWatcher:debug(string.format("combat in - finish_at:%s ms", self.state.finish_at))
 end
 
-function combatWatcher:OnCombatRefresh(latency)
+function combatWatcher:OnCombatRefresh(tick, latency)
 	local latency = latency or 0
 	self.state.duration = 6 + latency
-	self.state.finish_at = GetTime() + self.state.duration
+	self.state.finish_at = tick + self.state.duration
 	combatWatcher:debug(string.format("combat refresh - finish_at:%s ms", self.state.finish_at))
 end
 
@@ -94,7 +94,7 @@ function combatWatcher:set_logger(logger)
 end
 
 function combatWatcher:handle_event(event, arg1, arg2) 
-	combatWatcher:debug(string.format("handle event: %s (%s %s)", tostring(event), tostring(arg1), tostring(arg2)))
+	combatWatcher:debug(string.format("handle event: %s (args1:`%s` args2:`%s`)", tostring(event), tostring(arg1), tostring(arg2)))
 	debuffWatcher:handle_event(event, arg1, arg2)
 
 	if event == 'PLAYER_REGEN_DISABLED' then
@@ -126,14 +126,14 @@ function combatWatcher:handle_event(event, arg1, arg2)
 		end
 	end
 
-	combatWatcher:OnCombatRefresh()
+	combatWatcher:OnCombatRefresh(GetTime())
 	return COMBAT_ACTION_UPDATE
 end
 
 function combatWatcher:handle_tick(tick, delta)
-	combatWatcher:debug(string.format("handle tick: %s (%s)", tostring(tick), tostring(delta)))
 	if debuffWatcher:handle_tick(tick) then
-		combatWatcher:OnCombatRefresh()
+		combatWatcher:debug(string.format("handle tick: %s", tostring(tick)))
+		combatWatcher:OnCombatRefresh(tick)
 		return true
 	end
 	

@@ -1,4 +1,5 @@
 local fixture = fixture or require("test_data")
+fixture.silence_mode = true
 
 -- ============================================
 -- Test cases

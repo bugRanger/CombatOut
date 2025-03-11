@@ -25,19 +25,19 @@ debuffWatcher = debuffWatcher or require("module.debuff")
 
 local test_data = test_data or require("watcher")
 
-local silenceMode = true
-local logger = logger or {}
-function logger:debug(msg)
-	if silenceMode then return end
-	print(msg)
-end
-
 local fixture = fixture or {}
 fixture.aura = {}
 fixture.aura_index = {}
 fixture.aura_count = 0
 fixture.time = 0
 fixture.time_step = 0.04
+fixture.silence_mode = true
+
+local logger = logger or {}
+function logger:debug(msg)
+	if fixture.silence_mode then return end
+	print(msg)
+end
 
 function fixture:reset()
 	self.aura = {}
