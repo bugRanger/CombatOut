@@ -101,32 +101,38 @@ function start_aura_when_duplicate_aura_with_blacklist_aura_then_updated()
 end
 
 function start_aura_when_aura_from_blacklist_then_not_updated()
+	local blacklist_debuffs = {
+		[1] = { name = "Earthbind" },
+		[2] = { name = "Earthbind Totem" },
+		[3] = { name = "Detect Magic" },
+		[4] = { name = "Speed" },
+		[5] = { name = "Restoration" },
+		[6] = { name = "Berserking" },
+		[7] = { name = "Hunter's Mark" },
+		[8] = { name = "Fleeing" },
+		[9] = { name = "Blood Fury" },
+		[10] = { name = "Party Time!" },
+		[11] = { name = "Sleepy" },
+		[12] = { name = "Shrink" },
+		[13] = { name = "Recently Bandaged" },
+		[14] = { name = "Forbearance" },
+	}
+
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:raise_tick()
 
-	-- Act
-	fixture:start_aura(2, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
-	fixture:start_aura(3, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
-	fixture:start_aura(4, "Detect Magic", "magic", "TEXTURE\\DETECT_MAGIC", 20)
-	fixture:start_aura(5, "Speed", "none", "TEXTURE\\SPEED", 20)
-	fixture:start_aura(6, "Restoration", "none", "TEXTURE\\RESTORATION", 20)
-	fixture:start_aura(7, "Berserking", "none", "TEXTURE\\BERSERKING", 20)
-	fixture:start_aura(8, "Hunter's Mark", "none", "TEXTURE\\HUNTER_MARK", 20)
-	fixture:start_aura(9, "Fleeing", "none", "TEXTURE\\FLEEING", 20)
+	for index, blacklist_debuff in pairs(blacklist_debuffs) do
+		local debuff_texture = string.upper(blacklist_debuff.name):gsub(" ", "_")
+		-- Act
+		fixture:start_aura(1 + index, blacklist_debuff.name, "none", "TEXTURE\\"..debuff_texture, 20)
+		local updated = fixture:raise_tick()
 
-	fixture:start_aura(10, "Blood Fury", "none", "TEXTURE\\BLOOD_FURY", 20)	
-	fixture:start_aura(11, "Party Time!", "magic", "TEXTURE\\PARTY_TIME", 20)
-	fixture:start_aura(12, "Sleepy", "magic", "TEXTURE\\SLEEPY", 20)
-	fixture:start_aura(13, "Shrink", "curse", "TEXTURE\\SHRINK", 20)
-	fixture:start_aura(14, "Recently Bandaged", "none", "TEXTURE\\RECENTLY_BANDAGED", 20)
-	fixture:start_aura(15, "Forbearance", "none", "TEXTURE\\FORBEARANCE", 20)
-	local updated = fixture:raise_tick()
-
-	-- Assert
-	assert(not updated)
+		-- Assert
+		assert(not updated, blacklist_debuff.name)
+	end
 end
 
 -- refresh aura
