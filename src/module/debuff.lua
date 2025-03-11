@@ -89,7 +89,7 @@ function debuffStorage:zip(remain, total)
 			curr_index = curr_index + 1
 			next_index = next_index + 1
 		else
-			while next_index < total + 1 do				
+			while next_index < total + 1 do
 				if self.items_by_index[next_index] then
 					break
 				else
@@ -139,8 +139,8 @@ function debuffStorage:regenerate(index)
 		local item = self.items_by_index[index + 1]
 		if item then
 			self:drop(item.name)
+			debuffWatcher:debug('regenerate aura: '..index..' - '..debuff.name)
 		end
-
 		self.items_by_index[index + 1] = debuff
 	end
 
@@ -163,8 +163,6 @@ function debuffStorage:try_update()
 		local debuff = self:regenerate(index)
 
 		if debuff then
-			debuffWatcher:debug('regenerate aura: '..index..' - '..debuff.name)
-
 			if debuff.expiration == -1 then
 				debuff.expiration = expiration
 			else
@@ -176,8 +174,6 @@ function debuffStorage:try_update()
 					end
 				end
 			end
-		else
-			debuffWatcher:debug('regenerate aura: '..index..' - nil')
 		end
 
 		remain_count = remain_count + 1
