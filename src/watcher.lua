@@ -137,7 +137,7 @@ function combatWatcher:handle_tick(tick, delta)
 		return true
 	end
 	
-	combatWatcher:OnCombatTick(delta)	
+	combatWatcher:OnCombatTick(delta)
 	return false
 end
 

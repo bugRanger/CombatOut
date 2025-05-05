@@ -175,7 +175,7 @@ function CombatOut_OnEvent()
 		return
 	end
 
-	if combatWatcher:handle_event(event, arg1, arg2) == true then
+	if combatWatcher:handle_event(event, arg1, arg2) == COMBAT_ACTION_START then
 		CombatOut_Frame:Show()
 		return
 	end
