@@ -91,7 +91,6 @@ end
 local function UpdateDisplay(duration)
 	if (duration <= 0) then
 		CombatOut_FrameTime:Hide()
-		CombatOut_Frame:Hide()
 	else
 		local width = (duration / 6 ) * CombatOut_Settings["w"]
 		if width > 0 then
@@ -175,8 +174,14 @@ function CombatOut_OnEvent()
 		return
 	end
 
-	if combatWatcher:handle_event(event, arg1, arg2) == COMBAT_ACTION_START then
+	local result = combatWatcher:handle_event(event, arg1, arg2);
+	if result == COMBAT_ACTION_START then
 		CombatOut_Frame:Show()
+		return
+	end
+
+	if result == COMBAT_ACTION_FINISH then
+		CombatOut_Frame:Hide()
 		return
 	end
 end

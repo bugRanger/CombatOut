@@ -43,11 +43,9 @@ end
 
 function debuffStorage:push(name)
 	self.counter = self.counter + 1
-	local texture, _, _ = UnitDebuff('player', self.counter)
 	local item = self.items[name] or {}
 	item.name = item.name or name
 	item.expiration = item.expiration or -1
-	item.texture = item.texture or texture
 	item.counter = (item.counter or 0) + 1
 	
 	if self.blacklist[name] then
@@ -120,14 +118,31 @@ function debuffStorage:zip(remain, total)
 	self.counter = remain
 end
 
+function debuffStorage:get_name(index)
+	if not UnitDebuff("player", index) then
+		return nil
+	end
+
+    local text = getglobal(DebuffTooltip:GetName().."TextLeft1")
+	DebuffTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+	DebuffTooltip:SetUnitDebuff("player", index)
+	name = text:GetText()
+	DebuffTooltip:Hide()
+	return name
+end
+
 function debuffStorage:regenerate(index)
-	local texture, _, _ = UnitDebuff('player', index + 1)
 	local debuff = nil
+	local name = self:get_name(index)
+	local item = self.items_by_index[index]
+	if item.name == name then
+		debuff = item
+	end
 	
 	for idx = index + 1, 32 do
 		local item = self.items_by_index[idx]
 		if item then
-			if item.texture == texture then
+			if item.name == name then
 				self.items_by_index[idx] = nil
 				debuff = item
 				break
@@ -159,10 +174,12 @@ function debuffStorage:try_update()
 		end
 
 		local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
+		debuffWatcher:debug('expiration aura: '..index..' - '..expiration)
 
-		local debuff = self:regenerate(index)
+		local debuff = self:regenerate(index + 1)
 
 		if debuff then
+			debuffWatcher:debug('find debuff: '..index..' - '..debuff.name)
 			if debuff.expiration == -1 then
 				debuff.expiration = expiration
 			else
