@@ -7,6 +7,12 @@ combatWatcher = combatWatcher or {
     },
 }
 
+COMBAT_ACTION_IGNORE = 0
+COMBAT_ACTION_START = 1
+COMBAT_ACTION_FINISH = 2
+COMBAT_ACTION_UPDATE = 3
+
+
 local CombatTextUpdateEventTypes = {
 	["AURA_START_HARMFUL"] = true, 
 	["SPELL_DAMAGE"] = true, --someone got damaged by caster 
@@ -32,10 +38,10 @@ function combatWatcher:OnCombatIn()
 	combatWatcher:debug(string.format("combat in - finish_at:%s ms", self.state.finish_at))
 end
 
-function combatWatcher:OnCombatRefresh(latency)
+function combatWatcher:OnCombatRefresh(tick, latency)
 	local latency = latency or 0
 	self.state.duration = 6 + latency
-	self.state.finish_at = GetTime() + self.state.duration
+	self.state.finish_at = tick + self.state.duration
 	combatWatcher:debug(string.format("combat refresh - finish_at:%s ms", self.state.finish_at))
 end
 
@@ -88,50 +94,50 @@ function combatWatcher:set_logger(logger)
 end
 
 function combatWatcher:handle_event(event, arg1, arg2) 
-	combatWatcher:debug(string.format("handle event: %s (%s %s)", tostring(event), tostring(arg1), tostring(arg2)))
+	combatWatcher:debug(string.format("handle event: %s (args1:`%s` args2:`%s`)", tostring(event), tostring(arg1), tostring(arg2)))
 	debuffWatcher:handle_event(event, arg1, arg2)
 
 	if event == 'PLAYER_REGEN_DISABLED' then
 		combatWatcher:OnCombatIn()
-		return true
+		return COMBAT_ACTION_START
 	end
 
 	if event == 'PLAYER_REGEN_ENABLED' then
 		combatWatcher:OnCombatOut()
-		return false
+		return COMBAT_ACTION_FINISH
 	end
 
 	if event == 'CHAT_MSG_SPELL_SELF_DAMAGE' then
 		if string.find(arg1, "^Your Taunt") ~= nil or
 		   string.find(arg1, "^Your Growl") ~= nil then
-			return nil
+			return COMBAT_ACTION_IGNORE
 		end
 	end
 
 	if event == 'CHAT_MSG_COMBAT_SELF_HITS' then
 		if string.find(arg1, "^You fall and lose %d+ health.$") ~= nil then
-			return nil
+			return COMBAT_ACTION_IGNORE
 		end
 	end
 
 	if event == 'COMBAT_TEXT_UPDATE' then
 		if not CombatTextUpdateEventTypes[arg1] then
-			return nil
+			return COMBAT_ACTION_IGNORE
 		end
 	end
 
-	combatWatcher:OnCombatRefresh()
-	return nil
+	combatWatcher:OnCombatRefresh(GetTime())
+	return COMBAT_ACTION_UPDATE
 end
 
 function combatWatcher:handle_tick(tick, delta)
-	combatWatcher:debug(string.format("handle tick: %s (%s)", tostring(tick), tostring(delta)))
 	if debuffWatcher:handle_tick(tick) then
-		combatWatcher:OnCombatRefresh()
+		combatWatcher:debug(string.format("handle tick: %s", tostring(tick)))
+		combatWatcher:OnCombatRefresh(tick)
 		return true
 	end
 	
-	combatWatcher:OnCombatTick(delta)	
+	combatWatcher:OnCombatTick(delta)
 	return false
 end
 

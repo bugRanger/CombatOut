@@ -1,171 +1,58 @@
--- ============================================
--- This is API WOW 1.12
--- ============================================
-local COMBAT_TEXT_UPDATE = 'COMBAT_TEXT_UPDATE'
-local AURA_START_HARMFUL_EVENT = 'AURA_START_HARMFUL'
-local AURA_END_HARMFUL_EVENT = 'AURA_END_HARMFUL'
-
--- ============================================
--- Fixture for tests
--- ============================================
-local AURA_INDEX_STEP = 1
-
-debuffWatcher = debuffWatcher or require("module.debuff")
-
-local test_data = test_data or require("watcher")
-
-local silenceMode = true
-local logger = logger or {}
-function logger:debug(msg)
-	if silenceMode then return end
-	print(msg)
-end
-
-local fixture = fixture or {}
-fixture.aura = {}
-fixture.aura_index = {}
-fixture.aura_count = 0
-fixture.time = 0
-fixture.time_step = 0.04
-
-function fixture:reset()
-	self.aura = {}
-	self.aura_index = {}
-	self.aura_uids = {}
-	self.aura_count = 0
-	self.time = 0
-	
-	test_data:set_logger(logger)
-	test_data:reset()
-end
-
-function fixture:start_aura(uid, name, kind, texture, duration)
-	self.aura_count = self.aura_count + AURA_INDEX_STEP
-	local aura = {}
-	aura.index = self.aura_count
-	aura.name = name
-	aura.kind = kind
-	aura.texture = texture
-
-	self.aura[uid] = aura
-	self.aura_index[aura.index] = aura
-
-	local result = test_data:handle_event(COMBAT_TEXT_UPDATE, AURA_START_HARMFUL_EVENT, name)
-
-	aura.start = self.time
-	aura.duration = duration
-
-	return result
-end
-
-function fixture:refresh_aura(uid, duration)
-	if self.aura[uid] then
-		self.aura[uid].start = self.time
-		self.aura[uid].duration = self.aura[uid].duration or duration
-	end
-end
-
-function fixture:finish_aura(uid)
-	local aura = self.aura[uid]
-	if aura then
-		test_data:handle_event(COMBAT_TEXT_UPDATE, AURA_END_HARMFUL_EVENT, aura.name)
-	end
-
-	local prev_aura = nil
-	for i=self.aura_count + 1, aura.index, -1 do
-		local curr_aura = self.aura_index[i]
-		if curr_aura then
-			curr_aura.index = curr_aura.index - 1
-		end
-
-		self.aura_index[i] = prev_aura
-		prev_aura = curr_aura
-	end
-
-	if self.aura_count > 0 then
-		self.aura_count = self.aura_count - AURA_INDEX_STEP
-	end
-
-	self.aura[uid] = nil
-end
-
-function fixture:raise_tick(interval)
-	local delta = (interval or self.time_step)
-	self.time = self.time + delta
-	return test_data:handle_tick(self.time, delta)
-end
-
-function fixture:set_hooks()
-	local to_idx = function(index)
-		return (index + 1) * 2
-	end
-	local to_index = function(id)
-		return id / 2 - 1
-	end
-
-	_G['UnitDebuff'] = function(unit, index)
-		local aura = fixture.aura_index[index]
-		if aura then
-			return aura.texture, nil, aura.kind
-		end
-
-		-- Texture, Stack, Type
-		return nil, nil, nil
-	end
-
-	_G['GetPlayerBuff'] = function(index, filter)
-		local aura = fixture.aura_index[index + 1]
-		if aura then
-			return to_idx(aura.index), nil
-		end
-
-		-- id, cancelling
-		return -1, nil
-	end
-
-	_G['GetPlayerBuffTimeLeft'] = function(id)
-		local aura = fixture.aura_index[to_index(id)]
-		if aura then
-			local remain  = aura.start + aura.duration
-			if remain > fixture.time then
-				return remain - fixture.time
-			end
-		end
-
-		-- timeleft
-		return nil
-	end
-
-	_G['GetTime'] = function()
-		return fixture.time
-	end
-end
-
-function __FUNC__() return debug.getinfo(3, 'n').name end
-
-function assert(value)
-	if value then
-		print('OK - '..__FUNC__())
-	else
-		print('FAIL - '..__FUNC__())
-		error('assertion failed!')
-	end
-end
-
-function assert_eq(left, right)
-	if left == right then
-		print('OK - '..__FUNC__())
-	else
-		print('FAIL - '..__FUNC__())
-		error('assertion `left == right` failed! \n  left: '..(left or 'nil')..'\n right: '..(right or 'nil'))
-	end
-end
+local fixture = fixture or require("test_data")
+fixture.silence_mode = true
 
 -- ============================================
 -- Test cases
 -- ============================================
 
 fixture:set_hooks()
+
+
+-- hanle events
+function raise_event_when_combat_events_then_updated()
+	local events = {
+		PLAYER_REGEN_DISABLED = COMBAT_ACTION_START,
+		PLAYER_REGEN_ENABLED = COMBAT_ACTION_FINISH,
+		CHAT_MSG_SPELL_SELF_DAMAGE = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_COMBAT_SELF_HITS = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_COMBAT_SELF_MISSES = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_COMBAT_CREATURE_VS_SELF_HITS = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS = COMBAT_ACTION_UPDATE,
+		CHAT_MSG_COMBAT_HOSTILEPLAYER_MISSES = COMBAT_ACTION_UPDATE,
+	}
+
+	for raised_event, expected_action in pairs(events) do
+		-- Arrange
+		fixture:reset()
+
+		-- Act
+		local action = fixture:raise_event(raised_event, '', '')
+
+		-- Assert
+		assert_eq(action, expected_action, raised_event)
+	end
+end
+
+function raise_event_when_non_combat_events_then_not_updated()
+	local events = {
+		[0] = { event = CHAT_MSG_COMBAT_SELF_HITS, args = { arg1 = "You fall and lose 100 health." }},
+		[1] = { event = CHAT_MSG_SPELL_SELF_DAMAGE, args = { arg1 = "Your Taunt applyed on Target1." }},
+		[2] = { event = CHAT_MSG_SPELL_SELF_DAMAGE, args = { arg1 = "Your Growl applyed on Target1." }},
+	}
+
+	for _, params in pairs(events) do
+		-- Arrange
+		fixture:reset()
+
+		-- Act
+		local action = fixture:raise_event(params.event, params.args.arg1, params.args.arg2)
+
+		-- Assert
+		assert_eq(action, COMBAT_ACTION_IGNORE, params.event, params.args)
+	end
+end
 
 -- start aura
 function start_aura_when_without_auras_then_not_updated()
@@ -214,32 +101,38 @@ function start_aura_when_duplicate_aura_with_blacklist_aura_then_updated()
 end
 
 function start_aura_when_aura_from_blacklist_then_not_updated()
+	local blacklist_debuffs = {
+		[1] = { name = "Earthbind" },
+		[2] = { name = "Earthbind Totem" },
+		[3] = { name = "Detect Magic" },
+		[4] = { name = "Speed" },
+		[5] = { name = "Restoration" },
+		[6] = { name = "Berserking" },
+		[7] = { name = "Hunter's Mark" },
+		[8] = { name = "Fleeing" },
+		[9] = { name = "Blood Fury" },
+		[10] = { name = "Party Time!" },
+		[11] = { name = "Sleepy" },
+		[12] = { name = "Shrink" },
+		[13] = { name = "Recently Bandaged" },
+		[14] = { name = "Forbearance" },
+	}
+
 	-- Arrange
 	fixture:reset()
 
 	fixture:start_aura(1, "Death", "magic", "TEXTURE\\DEAD", 20)
 	fixture:raise_tick()
 
-	-- Act
-	fixture:start_aura(2, "Earthbind", "magic", "TEXTURE\\EARTHBIND", 20)
-	fixture:start_aura(3, "Earthbind Totem", "magic", "TEXTURE\\EARTHBIND_TOTEM", 20)
-	fixture:start_aura(4, "Detect Magic", "magic", "TEXTURE\\DETECT_MAGIC", 20)
-	fixture:start_aura(5, "Speed", "none", "TEXTURE\\SPEED", 20)
-	fixture:start_aura(6, "Restoration", "none", "TEXTURE\\RESTORATION", 20)
-	fixture:start_aura(7, "Berserking", "none", "TEXTURE\\BERSERKING", 20)
-	fixture:start_aura(8, "Hunter's Mark", "none", "TEXTURE\\HUNTER_MARK", 20)
-	fixture:start_aura(9, "Fleeing", "none", "TEXTURE\\FLEEING", 20)
+	for index, blacklist_debuff in pairs(blacklist_debuffs) do
+		local debuff_texture = string.upper(blacklist_debuff.name):gsub(" ", "_")
+		-- Act
+		fixture:start_aura(1 + index, blacklist_debuff.name, "none", "TEXTURE\\"..debuff_texture, 20)
+		local updated = fixture:raise_tick()
 
-	fixture:start_aura(10, "Blood Fury", "none", "TEXTURE\\BLOOD_FURY", 20)	
-	fixture:start_aura(11, "Party Time!", "magic", "TEXTURE\\PARTY_TIME", 20)
-	fixture:start_aura(12, "Sleepy", "magic", "TEXTURE\\SLEEPY", 20)
-	fixture:start_aura(13, "Shrink", "curse", "TEXTURE\\SHRINK", 20)
-	fixture:start_aura(14, "Recently Bandaged", "none", "TEXTURE\\RECENTLY_BANDAGED", 20)
-	fixture:start_aura(15, "Forbearance", "none", "TEXTURE\\FORBEARANCE", 20)
-	local updated = fixture:raise_tick()
-
-	-- Assert
-	assert(not updated)
+		-- Assert
+		assert(not updated, blacklist_debuff.name)
+	end
 end
 
 -- refresh aura
@@ -476,3 +369,6 @@ finish_aura_when_duplicate_aura_with_short_time_then_not_updated()
 finish_aura_when_first_aura_then_not_updated()
 finish_aura_when_second_aura_then_not_updated()
 finish_aura_when_last_aura_then_not_updated()
+
+raise_event_when_combat_events_then_updated()
+raise_event_when_non_combat_events_then_not_updated()
