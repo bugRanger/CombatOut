@@ -115,6 +115,7 @@ function start_aura_when_aura_from_blacklist_then_not_updated()
 		[12] = { name = "Shrink" },
 		[13] = { name = "Recently Bandaged" },
 		[14] = { name = "Forbearance" },
+		[15] = { name = "Weakened Soul" }
 	}
 
 	-- Arrange
