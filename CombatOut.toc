@@ -6,8 +6,9 @@
 ## Author: https://github.com/bugRanger
 ## SavedVariables: CombatOut_Settings
 
+src\api\custom.lua
+src\api\debuff_tooltip.xml
 src\module\debuff.lua
-src\module\debuff_tooltip.xml
 src\watcher.lua
 
 CombatOut.xml

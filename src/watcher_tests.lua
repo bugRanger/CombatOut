@@ -8,7 +8,7 @@ fixture.silence_mode = true
 fixture:set_hooks()
 
 
--- hanle events
+-- handle events
 function raise_event_when_combat_events_then_updated()
 	local events = {
 		PLAYER_REGEN_DISABLED = COMBAT_ACTION_START,
@@ -93,8 +93,7 @@ function start_aura_when_duplicate_aura_with_blacklist_aura_then_updated()
 	fixture:raise_tick()
 
 	-- Act
-	fixture:start_aura(3, "Death", "magic", "TEXTURE\\DEAD", 20)
-	local updated = fixture:raise_tick()
+	local updated = fixture:start_aura(3, "Death", "magic", "TEXTURE\\DEAD", 20)
 
 	-- Assert
 	assert(updated)

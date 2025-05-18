@@ -118,25 +118,14 @@ function debuffStorage:zip(remain, total)
 	self.counter = remain
 end
 
-function debuffStorage:get_name(index)
-	if not UnitDebuff("player", index) then
-		return nil
-	end
-
-    local text = getglobal(DebuffTooltip:GetName().."TextLeft1")
-	DebuffTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-	DebuffTooltip:SetUnitDebuff("player", index)
-	name = text:GetText()
-	DebuffTooltip:Hide()
-	return name
-end
-
 function debuffStorage:regenerate(index)
 	local debuff = nil
-	local name = self:get_name(index)
+	local name = UnitDebuffName("player", index)
 	local item = self.items_by_index[index]
-	if item.name == name then
-		debuff = item
+	if item then 
+		if item.name == name then
+			debuff = item
+		end
 	end
 	
 	for idx = index + 1, 32 do
