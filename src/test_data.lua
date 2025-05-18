@@ -65,10 +65,12 @@ function fixture:start_aura(uid, name, kind, texture, duration)
 	self.aura[uid] = aura
 	self.aura_index[aura.index] = aura
 
-	test_data:handle_event(COMBAT_TEXT_UPDATE, AURA_START_HARMFUL, name)
+	local result = test_data:handle_event(COMBAT_TEXT_UPDATE, AURA_START_HARMFUL, name)
 
 	aura.start = self.time
 	aura.duration = duration
+
+	return result == COMBAT_ACTION_UPDATE
 end
 
 function fixture:refresh_aura(uid, duration)
@@ -109,49 +111,67 @@ function fixture:raise_tick(interval)
 end
 
 function fixture:set_hooks()
-	local to_idx = function(index)
-		return (index + 1) * 2
-	end
-	local to_index = function(id)
-		return id / 2 - 1
-	end
-
-	_G['UnitDebuff'] = function(unit, index)
-		local aura = fixture.aura_index[index]
-		if aura then
-			return aura.texture, nil, aura.kind
+	local function set_origin_api_hooks()
+		local to_idx = function(index)
+			return (index + 1) * 2
 		end
-
-		-- Texture, Stack, Type
-		return nil, nil, nil
-	end
-
-	_G['GetPlayerBuff'] = function(index, filter)
-		local aura = fixture.aura_index[index + 1]
-		if aura then
-			return to_idx(aura.index), nil
+		local to_index = function(id)
+			return id / 2 - 1
 		end
-
-		-- id, cancelling
-		return -1, nil
-	end
-
-	_G['GetPlayerBuffTimeLeft'] = function(id)
-		local aura = fixture.aura_index[to_index(id)]
-		if aura then
-			local remain  = aura.start + aura.duration
-			if remain > fixture.time then
-				return remain - fixture.time
+	
+		_G['UnitDebuff'] = function(unit, index)
+			local aura = fixture.aura_index[index]
+			if aura then
+				return aura.texture, nil, aura.kind
 			end
+	
+			-- Texture, Stack, Type
+			return nil, nil, nil
 		end
-
-		-- timeleft
-		return nil
+	
+		_G['GetPlayerBuff'] = function(index, filter)
+			local aura = fixture.aura_index[index + 1]
+			if aura then
+				return to_idx(aura.index), nil
+			end
+	
+			-- id, cancelling
+			return -1, nil
+		end
+	
+		_G['GetPlayerBuffTimeLeft'] = function(id)
+			local aura = fixture.aura_index[to_index(id)]
+			if aura then
+				local remain = aura.start + aura.duration
+				if remain > fixture.time then
+					return remain - fixture.time
+				else 
+					return 0
+				end
+			end
+	
+			-- timeleft
+			return nil
+		end
+	
+		_G['GetTime'] = function()
+			return fixture.time
+		end
+	end	
+	local function set_custom_api_hooks()
+		_G['UnitDebuffName'] = function(unit, index)
+			local aura = fixture.aura_index[index]
+			if aura then
+				return aura.name
+			end
+	
+			-- Name
+			return nil
+		end
 	end
 
-	_G['GetTime'] = function()
-		return fixture.time
-	end
+	set_origin_api_hooks()
+	set_custom_api_hooks()
 end
 
 local function __FUNC__() return debug.getinfo(3, 'n').name end
