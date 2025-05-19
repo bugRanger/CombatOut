@@ -66,7 +66,8 @@ function combatWatcher:reset()
 	self.state.latency = 0
 	self.state.duration = 0
 	self.state.finish_at = 0
-	debuffWatcher:reset()
+	debuffPlayerWatcher:reset()
+	debuffTargetWatcher:reset()
 end
 
 function combatWatcher:subscribe(frame)
@@ -85,17 +86,20 @@ function combatWatcher:subscribe(frame)
 
 	frame:RegisterEvent('COMBAT_TEXT_UPDATE')
 
-	debuffWatcher:subscribe(frame)
+	debuffPlayerWatcher:subscribe(frame)
+	debuffTargetWatcher:subscribe(frame)
 end 
 
 function combatWatcher:set_logger(logger)
 	self.logger = logger
-	debuffWatcher.logger = logger
+	debuffPlayerWatcher.logger = logger
+	debuffTargetWatcher.logger = logger
 end
 
 function combatWatcher:handle_event(event, arg1, arg2) 
 	combatWatcher:debug(string.format("handle event: %s (args1:`%s` args2:`%s`)", tostring(event), tostring(arg1), tostring(arg2)))
-	debuffWatcher:handle_event(event, arg1, arg2)
+	debuffPlayerWatcher:handle_event(event, arg1, arg2)
+	debuffTargetWatcher:handle_event(event, arg1, arg2)
 
 	if event == 'PLAYER_REGEN_DISABLED' then
 		combatWatcher:OnCombatIn()
@@ -131,12 +135,24 @@ function combatWatcher:handle_event(event, arg1, arg2)
 end
 
 function combatWatcher:handle_tick(tick, delta)
-	if debuffWatcher:handle_tick(tick) then
-		combatWatcher:debug(string.format("handle tick: %s", tostring(tick)))
+	local has_update = false
+
+	if debuffTargetWatcher:handle_tick(tick) then
+		combatWatcher:debug(string.format("handle spell tick: %s", tostring(tick)))
 		combatWatcher:OnCombatRefresh(tick)
+		has_update = true
+	end
+
+	if debuffPlayerWatcher:handle_tick(tick) then
+		combatWatcher:debug(string.format("handle debuff tick: %s", tostring(tick)))
+		combatWatcher:OnCombatRefresh(tick)
+		has_update = true
+	end
+
+	if has_update then
 		return true
 	end
-	
+
 	combatWatcher:OnCombatTick(delta)
 	return false
 end

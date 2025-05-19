@@ -59,11 +59,11 @@ function debuffStorage:push(name)
 	self.items[name] = item
 	self.items_by_index[self.counter] = item
 
-	debuffWatcher:debug('add aura: '..name)
+	debuffPlayerWatcher:debug('add aura: '..name)
 end
 
 function debuffStorage:drop(name)
-	debuffWatcher:debug('drop aura: '..name)
+	debuffPlayerWatcher:debug('drop aura: '..name)
 	local item = self.items[name]
 	if item then
 		if self.counter > 0 then
@@ -145,7 +145,7 @@ function debuffStorage:regenerate(index)
 		local item = self.items_by_index[index + 1]
 		if item then
 			self:drop(item.name)
-			debuffWatcher:debug('regenerate aura: '..index..' - '..debuff.name)
+			debuffPlayerWatcher:debug('regenerate aura: '..index..' - '..debuff.name)
 		end
 		self.items_by_index[index + 1] = debuff
 	end
@@ -165,12 +165,12 @@ function debuffStorage:try_update()
 		end
 
 		local expiration = GetTime() + GetPlayerBuffTimeLeft(id)
-		debuffWatcher:debug('expiration aura: '..index..' - '..expiration)
+		debuffPlayerWatcher:debug('expiration aura: '..index..' - '..expiration)
 
 		local debuff = self:regenerate(index + 1)
 
 		if debuff then
-			debuffWatcher:debug('find debuff: '..index..' - '..debuff.name)
+			debuffPlayerWatcher:debug('find debuff: '..index..' - '..debuff.name)
 			if debuff.expiration == -1 then
 				debuff.expiration = expiration
 			else
@@ -178,7 +178,7 @@ function debuffStorage:try_update()
 					debuff.expiration = expiration
 					if debuff.has_tracked then
 						has_update = true
-						debuffWatcher:debug('update aura: '..index..' - '..debuff.name)
+						debuffPlayerWatcher:debug('update aura: '..index..' - '..debuff.name)
 					end
 				end
 			end
@@ -189,29 +189,29 @@ function debuffStorage:try_update()
 
 	if remain_count < total_count then
 		self:zip(remain_count, total_count)
-		debuffWatcher:debug('zip: '..remain_count..' <- '..total_count)
+		debuffPlayerWatcher:debug('zip: '..remain_count..' <- '..total_count)
 	end
 
 	return has_update
 end
 
-debuffWatcher = debuffWatcher or {}
-debuffWatcher.step_tick = 0.04
-debuffWatcher.next_tick = 0
-debuffWatcher.logger = nil
+debuffPlayerWatcher = debuffPlayerWatcher or {}
+debuffPlayerWatcher.step_tick = 0.04
+debuffPlayerWatcher.next_tick = 0
+debuffPlayerWatcher.logger = nil
 
-function debuffWatcher:reset()
+function debuffPlayerWatcher:reset()
 	self.step_tick = 0.04
 	self.next_tick = 0
 
 	debuffStorage:reset()
 end
 
-function debuffWatcher:subscribe(frame)
+function debuffPlayerWatcher:subscribe(frame)
 	frame:RegisterEvent('COMBAT_TEXT_UPDATE')
 end 
 
-function debuffWatcher:handle_event(event, arg1, arg2)
+function debuffPlayerWatcher:handle_event(event, arg1, arg2)
 	if event ~= 'COMBAT_TEXT_UPDATE' then
 		return
 	end
@@ -221,7 +221,7 @@ function debuffWatcher:handle_event(event, arg1, arg2)
 	end
 end
 
-function debuffWatcher:handle_tick(tick)
+function debuffPlayerWatcher:handle_tick(tick)
 	if self.next_tick > tick then
 		return false
 	end
@@ -230,9 +230,9 @@ function debuffWatcher:handle_tick(tick)
 	return debuffStorage:try_update()
 end
 
-function debuffWatcher:debug(msg)
+function debuffPlayerWatcher:debug(msg)
 	if not self.logger then return end
 	self.logger:debug(msg)
 end
 
-return debuffWatcher
+return debuffPlayerWatcher

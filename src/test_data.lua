@@ -21,7 +21,10 @@ CHAT_MSG_COMBAT_HOSTILEPLAYER_MISSES = 'CHAT_MSG_COMBAT_HOSTILEPLAYER_MISSES'
 -- ============================================
 local AURA_INDEX_STEP = 1
 
-debuffWatcher = debuffWatcher or require("module.debuff")
+hooks = hooks or require("api.hooks")
+
+debuffPlayerWatcher = debuffPlayerWatcher or require("module.debuff_player")
+debuffTargetWatcher = debuffTargetWatcher or require("module.debuff_target")
 
 local test_data = test_data or require("watcher")
 

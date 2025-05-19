@@ -7,8 +7,10 @@
 ## SavedVariables: CombatOut_Settings
 
 src\api\custom.lua
+src\api\hooks.lua
 src\api\debuff_tooltip.xml
-src\module\debuff.lua
+src\module\debuff_player.lua
+src\module\debuff_target.lua
 src\watcher.lua
 
 CombatOut.xml
