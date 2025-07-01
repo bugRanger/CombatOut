@@ -127,27 +127,10 @@ function debuffStorage:regenerate(index)
 	if item then 
 		if item.name == name then
 			debuff = item
-		end
-	end
-	
-	for idx = index + 1, 32 do
-		local item = self.items_by_index[idx]
-		if item then
-			if item.name == name then
-				self.items_by_index[idx] = nil
-				debuff = item
-				break
-			end
-		end
-	end
-	
-	if debuff then
-		local item = self.items_by_index[index + 1]
-		if item then
+		else
+			self.items_by_index[index] = nil
 			self:drop(item.name)
-			debuffWatcher:debug('regenerate aura: '..index..' - '..debuff.name)
 		end
-		self.items_by_index[index + 1] = debuff
 	end
 
 	return debuff
